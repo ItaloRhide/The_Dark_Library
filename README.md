@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="midias/mixed.png" alt="The Dark Library Icon" width="128">
+</p>
+
 # 🕯️ The Dark Library
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
