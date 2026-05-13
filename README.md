@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="midias/mixed.png" alt="The Dark Library Icon" width="128">
+  <img src="midias/mixed.png" alt="The Dark Library Icon" width="250">
 </p>
 
 <div align="center"> <h1>🕯️ The Dark Library 🕯️</h1>
