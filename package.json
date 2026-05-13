@@ -1,0 +1,25 @@
+{
+  "name": "the-dark-library",
+  "version": "1.0.0",
+  "description": "<p align=\"center\">\r   <img src=\"midias/mixed.png\" alt=\"The Dark Library Icon\" width=\"128\">\r </p>",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"bgBlue.bold,bgMagenta.bold\" \"cd \\\"back end\\\" && npm run dev\" \"cd \\\"front end\\\" && npm run dev\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ItaloRhide/The_Dark_Library.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ItaloRhide/The_Dark_Library/issues"
+  },
+  "homepage": "https://github.com/ItaloRhide/The_Dark_Library#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
