@@ -9,18 +9,15 @@ type Props = {
 };
 
 export function BookSpine({ story, onOpen, onEdit, onDelete, onRename }: Props) {
-  // Use a stable hash of the ID for the color/height if not provided
-  const hue = 280; // Default purple or can be derived from ID
-  const cover = `linear-gradient(135deg, oklch(0.42 0.12 ${hue}) 0%, oklch(0.32 0.1 ${hue}) 60%, oklch(0.25 0.08 ${hue}) 100%)`;
+  const cover = bookCover(story);
   const height = 200 + (story.title.length % 5) * 14;
   return (
     <div className="group relative flex flex-col items-center" style={{ perspective: 800 }}>
       <button
         onClick={onOpen}
         title={story.title}
-        className="relative rounded-sm transition-all duration-500 ease-out hover:-translate-y-3 hover:rotate-[-2deg] focus:outline-none"
+        className="relative w-8 sm:w-10 md:w-[52px] rounded-sm transition-all duration-500 ease-out hover:-translate-y-3 hover:rotate-[-2deg] focus:outline-none"
         style={{
-          width: 52,
           height,
           background: cover,
           boxShadow:
@@ -59,4 +56,42 @@ export function BookSpine({ story, onOpen, onEdit, onDelete, onRename }: Props) 
       </div>
     </div>
   );
+}
+
+function hashHue(input: string): number {
+  let h = 0;
+  for (let i = 0; i < input.length; i++) {
+    h = (h * 31 + input.charCodeAt(i)) >>> 0;
+  }
+  return h % 360;
+}
+
+export function bookCover(story: Pick<Book, "color" | "id">): string {
+  const hex = story.color && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(story.color)
+    ? story.color
+    : null;
+  if (hex) {
+    return `linear-gradient(135deg, ${hex} 0%, ${shade(hex, -12)} 60%, ${shade(hex, -20)} 100%)`;
+  }
+  const hue = hashHue(story.id);
+  return `linear-gradient(135deg, oklch(0.42 0.12 ${hue}) 0%, oklch(0.32 0.1 ${hue}) 60%, oklch(0.25 0.08 ${hue}) 100%)`;
+}
+
+function shade(hex: string, amount: number): string {
+  const n = hex.replace("#", "");
+  const full = n.length === 3 ? n.split("").map((c) => c + c).join("") : n;
+  const num = parseInt(full, 16);
+  let r = (num >> 16) & 255;
+  let g = (num >> 8) & 255;
+  let b = num & 255;
+  if (amount > 0) {
+    r = Math.min(255, r + amount);
+    g = Math.min(255, g + amount);
+    b = Math.min(255, b + amount);
+  } else {
+    r = Math.max(0, r + amount);
+    g = Math.max(0, g + amount);
+    b = Math.max(0, b + amount);
+  }
+  return `rgb(${r}, ${g}, ${b})`;
 }

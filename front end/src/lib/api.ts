@@ -28,6 +28,7 @@ export type Book = {
   title: string;
   subtitle?: string;
   cover_image?: string;
+  color?: string;
   created_at: string;
   updated_at: string;
   chapters?: Chapter[];
@@ -37,7 +38,7 @@ export const booksApi = {
   list: () => api.get<Book[]>('/books').then((res) => res.data),
   get: (id: string) => api.get<Book & { chapters: Chapter[] }>(`/books/${id}`).then((res) => res.data),
   create: (title: string) => api.post<Book>('/books', { title }).then((res) => res.data),
-  update: (id: string, data: { title?: string; subtitle?: string; cover_image?: string }) => 
+  update: (id: string, data: { title?: string; subtitle?: string; cover_image?: string; color?: string }) => 
     api.patch<Book>(`/books/${id}`, data).then((res) => res.data),
   updateCover: (id: string, file: File) => {
     const formData = new FormData();

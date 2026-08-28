@@ -45,17 +45,6 @@ export function AnimatedLibraryBackground() {
 
     const COUNT = 45;
 
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
-      canvas.style.width = `${window.innerWidth}px`;
-      canvas.style.height = `${window.innerHeight}px`;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-    resize();
-    window.addEventListener("resize", resize);
-
     const spawn = (initial = false): Particle => ({
       x: Math.random() * window.innerWidth,
       y: initial ? Math.random() * window.innerHeight : window.innerHeight + 10,
@@ -66,6 +55,25 @@ export function AnimatedLibraryBackground() {
       hue: Math.random() < 0.6 ? 280 : 230, // purple / blue
       phase: Math.random() * Math.PI * 2,
     });
+
+    const regen = () => {
+      particlesRef.current = Array.from({ length: COUNT }, () => spawn(true));
+    };
+
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // Re-distribute particles so none get stuck in a corner at a new resolution
+      regen();
+    };
+
+    const onResize = () => resize();
+    resize();
+    window.addEventListener("resize", onResize);
 
     particlesRef.current = Array.from({ length: COUNT }, () => spawn(true));
 
@@ -101,36 +109,38 @@ export function AnimatedLibraryBackground() {
 
     return () => {
       cancelAnimationFrame(rafRef.current);
-      window.removeEventListener("resize", resize);
+      window.removeEventListener("resize", onResize);
     };
   }, []);
 
   return (
-    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none bg-[#050010]">
-      <div
-        className="absolute inset-[-20px] bg-center bg-cover transition-transform duration-500 ease-out opacity-60"
-        style={{
-          backgroundImage: `url(${bgImage})`,
-          transform: `translate3d(${parallax.x}px, ${parallax.y}px, 0) scale(1.05)`,
-          filter: "brightness(0.5) contrast(1.2)",
-        }}
-      />
+    <>
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none bg-[#050010]">
+        <div
+          className="absolute inset-[-20px] bg-center bg-cover transition-transform duration-500 ease-out opacity-60"
+          style={{
+            backgroundImage: `url(${bgImage})`,
+            transform: `translate3d(${parallax.x}px, ${parallax.y}px, 0) scale(1.05)`,
+            filter: "brightness(0.5) contrast(1.2)",
+          }}
+        />
 
-      {/* Lighting overlay — candle + magic glow */}
-      <div className="absolute inset-0 alb-lighting" />
-      <div className="absolute inset-0 alb-lighting-2" />
+        {/* Lighting overlay — candle + magic glow */}
+        <div className="absolute inset-0 alb-lighting" />
+        <div className="absolute inset-0 alb-lighting-2" />
 
-      {/* Particle canvas */}
-      <canvas ref={canvasRef} className="absolute inset-0 opacity-80" />
+        {/* Dark readability overlay */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, rgba(10,0,30,0.2) 0%, rgba(5,0,20,0.5) 70%, rgba(2,0,12,0.8) 100%)",
+          }}
+        />
+      </div>
 
-      {/* Dark readability overlay */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse at center, rgba(10,0,30,0.2) 0%, rgba(5,0,20,0.5) 70%, rgba(2,0,12,0.8) 100%)",
-        }}
-      />
-    </div>
+      {/* Particle canvas — passes in front of the shelf but stays click-through */}
+      <canvas ref={canvasRef} className="fixed inset-0 z-30 pointer-events-none opacity-80" />
+    </>
   );
-  }
+}

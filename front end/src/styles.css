@@ -1,7 +1,7 @@
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap");
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
-@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap");
 
 @custom-variant dark (&:is(.dark *));
 
@@ -161,6 +161,7 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-body);
+    overflow-x: hidden;
   }
   h1, h2, h3, h4 {
     font-family: var(--font-serif);
@@ -180,6 +181,20 @@
 @keyframes book-open {
   0% { transform: scale(0.85) rotateX(10deg); opacity: 0; }
   100% { transform: scale(1) rotateX(0); opacity: 1; }
+}
+
+.book-open-anim {
+  animation: book-open 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes options-rise {
+  0% { transform: translateY(24px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.options-rise-anim {
+  animation: options-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.15s forwards;
+  opacity: 0;
 }
 
 @keyframes alb-flicker {

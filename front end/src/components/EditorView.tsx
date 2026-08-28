@@ -13,6 +13,7 @@ export function EditorView({ storyId, onBack, onRead }: Props) {
   const [activeId, setActiveId] = useState<string | "toc">("toc");
   const [savedAt, setSavedAt] = useState<number>(Date.now());
   const [loading, setLoading] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
   const chaptersRef = useRef<Chapter[]>([]);
   const autoSaveTimer = useRef<number | null>(null);
@@ -117,72 +118,111 @@ export function EditorView({ storyId, onBack, onRead }: Props) {
 
   return (
     <div
-      className="min-h-screen w-full animate-fade-in flex"
-      style={{ background: "linear-gradient(180deg, #240046, #10002B)" }}
+      className="min-h-screen w-full animate-fade-in flex flex-col md:flex-row"
+      style={{
+        background:
+          "linear-gradient(180deg, rgba(36,0,70,0.55) 0%, rgba(16,0,43,0.75) 100%)",
+      }}
     >
       <aside
-        className="w-64 shrink-0 border-r p-4 sticky top-0 h-screen overflow-y-auto"
+        className={`shrink-0 border-r p-4 transition-all duration-300 ${
+          sidebarCollapsed
+            ? "w-full md:w-16"
+            : "w-full md:w-64"
+        } relative md:sticky md:top-0 md:h-screen md:overflow-y-auto`}
         style={{
           borderColor: "#9D4EDD33",
           background: "linear-gradient(180deg, #1a0033cc, #10002Bcc)",
           backdropFilter: "blur(8px)",
         }}
       >
-        <button
-          onClick={onBack}
-          className="text-xs mb-6 hover:underline"
-          style={{ color: "#C77DFF" }}
-        >
-          ← Biblioteca
-        </button>
-        <button
+        <div className="flex items-center justify-between mb-6">
+          {!sidebarCollapsed && (
+            <button
+              onClick={onBack}
+              className="text-xs hover:underline"
+              style={{ color: "#C77DFF" }}
+            >
+              ← Biblioteca
+            </button>
+          )}
+          <button
+            onClick={() => setSidebarCollapsed((v) => !v)}
+            title={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+            className="ml-auto w-8 h-8 shrink-0 flex items-center justify-center rounded-full border transition hover:bg-white/10"
+            style={{ borderColor: "#9D4EDD66", color: "#E0AAFF" }}
+          >
+            {sidebarCollapsed ? "»" : "«"}
+          </button>
+        </div>
+
+        <div
+          className="rounded-lg transition"
+          title="Capa & Sumário"
           onClick={() => setActiveId("toc")}
-          className="w-full text-left text-xs font-display tracking-[0.3em] mb-2 px-2 py-1.5 rounded transition"
           style={{
             color: activeId === "toc" ? "#10002B" : "#E0AAFF",
-            background:
-              activeId === "toc" ? "#E0AAFF" : "transparent",
+            background: activeId === "toc" ? "#E0AAFF" : "transparent",
           }}
         >
-          ✦ CAPA & SUMÁRIO
-        </button>
-        <div className="mt-4 mb-2 text-[10px] font-display tracking-[0.3em]" style={{ color: "#9D4EDD" }}>
-          CAPÍTULOS
+          <button
+            className={`w-full text-left text-xs font-display tracking-[0.3em] px-2 py-1.5 rounded transition ${sidebarCollapsed ? "text-center tracking-normal" : ""}`}
+          >
+            {sidebarCollapsed ? "✦" : "✦ CAPA & SUMÁRIO"}
+          </button>
         </div>
-        <ul className="space-y-1">
-          {chapters.map((c, i) => (
-            <li key={c.id}>
-              <button
-                onClick={() => setActiveId(c.id)}
-                className="w-full text-left px-2 py-1.5 rounded text-sm transition group flex items-baseline gap-2"
-                style={{
-                  color: activeId === c.id ? "#10002B" : "#E0AAFFcc",
-                  background: activeId === c.id ? "#C77DFF" : "transparent",
-                }}
-              >
-                <span className="font-display text-xs opacity-60">{String(i + 1).padStart(2, "0")}</span>
-                <span className="truncate">{c.title || "Sem título"}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <button
-          onClick={addChapter}
-          className="mt-4 w-full text-xs font-display tracking-wider px-3 py-2 rounded border transition hover:bg-white/5"
-          style={{ borderColor: "#9D4EDD66", color: "#E0AAFF" }}
-        >
-          + Novo capítulo
-        </button>
 
-        <div className="mt-8 text-[10px] italic opacity-60" style={{ color: "#C77DFF" }}>
-          Salvo {new Date(savedAt).toLocaleTimeString()}
-        </div>
+        {!sidebarCollapsed && (
+          <div className="mt-4 mb-2 text-[10px] font-display tracking-[0.3em]" style={{ color: "#9D4EDD" }}>
+            CAPÍTULOS
+          </div>
+        )}
+
+        {!sidebarCollapsed && (
+          <>
+            <ul className="space-y-1 mt-2">
+              {chapters.map((c, i) => (
+                <li key={c.id} title={c.title || "Sem título"}>
+                  <button
+                    onClick={() => setActiveId(c.id)}
+                    className="w-full text-left rounded text-sm transition group flex items-baseline px-2 py-1.5 gap-2"
+                    style={{
+                      color: activeId === c.id ? "#10002B" : "#E0AAFFcc",
+                      background: activeId === c.id ? "#C77DFF" : "transparent",
+                    }}
+                  >
+                    <span className="font-display text-xs opacity-60">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="truncate">{c.title || "Sem título"}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            <button
+              onClick={addChapter}
+              className="mt-4 w-full text-xs font-display tracking-wider px-3 py-2 rounded border transition hover:bg-white/5"
+              style={{ borderColor: "#9D4EDD66", color: "#E0AAFF" }}
+              title="Novo capítulo"
+            >
+              + Novo capítulo
+            </button>
+          </>
+        )}
+
+        {!sidebarCollapsed && (
+          <div className="mt-8 text-[10px] italic opacity-60" style={{ color: "#C77DFF" }}>
+            Salvo {new Date(savedAt).toLocaleTimeString()}
+          </div>
+        )}
       </aside>
 
       <div className="flex-1 min-w-0">
         <div className="sticky top-0 z-10 backdrop-blur bg-background/80 border-b border-border">
-          <div className="max-w-4xl mx-auto flex items-center justify-between px-6 py-3">
-            <span className="text-xs italic" style={{ color: "#9D4EDD" }}>
+          <div className="max-w-4xl mx-auto flex items-center justify-between gap-4 px-6 py-3">
+            <span
+              className="font-display tracking-wide text-sm"
+              style={{ color: "#E0AAFF" }}
+            >
               {activeId === "toc"
                 ? "Capa & Sumário"
                 : `Capítulo ${chapters.findIndex((c) => c.id === activeId) + 1}`}
@@ -191,10 +231,11 @@ export function EditorView({ storyId, onBack, onRead }: Props) {
               onClick={() =>
                 onRead(activeId === "toc" ? undefined : activeId)
               }
-              className="text-sm font-display tracking-wide px-3 py-1.5 rounded transition hover:scale-105"
+              className="text-sm font-display tracking-wide px-5 py-2 rounded-full transition hover:scale-105"
               style={{
                 background: "linear-gradient(135deg, #E0AAFF, #C77DFF)",
                 color: "#10002B",
+                boxShadow: "0 6px 20px -4px #C77DFF80",
               }}
             >
               📖 Ler
@@ -202,9 +243,9 @@ export function EditorView({ storyId, onBack, onRead }: Props) {
           </div>
         </div>
 
-        <div className="max-w-3xl mx-auto py-12 px-4">
+        <div className="max-w-3xl mx-auto py-8 px-3 md:py-12 md:px-4">
           <div
-            className="rounded-md p-12 md:p-16"
+            className="rounded-md p-6 md:p-16"
             style={{
               background: "var(--paper)",
               color: "var(--ink)",
@@ -228,6 +269,10 @@ export function EditorView({ storyId, onBack, onRead }: Props) {
                 onCoverImage={(img) => {
                     setBook(b => b ? {...b, cover_image: img} : null);
                     booksApi.update(storyId, { cover_image: img });
+                }}
+                onColor={(color) => {
+                    setBook(b => b ? {...b, color} : null);
+                    booksApi.update(storyId, { color });
                 }}
                 onPickChapter={(id) => setActiveId(id)}
                 onRenameChapter={renameChapter}
@@ -255,6 +300,7 @@ function TitleAndToc({
   onTitle,
   onSubtitle,
   onCoverImage,
+  onColor,
   onPickChapter,
   onRenameChapter,
   onDeleteChapter,
@@ -265,6 +311,7 @@ function TitleAndToc({
   onTitle: (t: string) => void;
   onSubtitle: (s: string) => void;
   onCoverImage: (img: string | undefined) => void;
+  onColor: (color: string) => void;
   onPickChapter: (id: string) => void;
   onRenameChapter: (id: string) => void;
   onDeleteChapter: (id: string) => void;
@@ -335,6 +382,35 @@ function TitleAndToc({
             remover capa
           </button>
         )}
+      </div>
+
+      <div className="flex flex-col items-center mb-10">
+        <p className="font-display tracking-[0.3em] text-[10px] mb-3 opacity-60">
+          COR DA ESTANTE
+        </p>
+        <label
+          className="relative group cursor-pointer rounded-md overflow-hidden transition hover:scale-105"
+          style={{
+            width: 64,
+            height: 64,
+            background: book.color || "oklch(0.42 0.12 280)",
+            boxShadow: "0 8px 20px -6px #00000088, inset 0 0 0 2px #7B2CBF66",
+          }}
+          title="Escolher a cor deste livro na estante"
+        >
+          <input
+            type="color"
+            value={book.color && /^#[0-9a-fA-F]{6}$/.test(book.color) ? book.color : "#6b4fa1"}
+            onChange={(e) => onColor(e.target.value)}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          />
+          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-display tracking-wider text-white opacity-0 group-hover:opacity-100 transition bg-black/40">
+            TROCAR
+          </span>
+        </label>
+        <span className="mt-2 text-[10px] italic opacity-50">
+          {book.color ? book.color.toUpperCase() : "Automática — escolha uma cor"}
+        </span>
       </div>
 
       <div className="text-center mb-12">

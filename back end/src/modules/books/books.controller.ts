@@ -5,19 +5,21 @@ import logger from '../../utils/logger';
 
 const createBookSchema = z.object({
   title: z.string().min(1),
+  color: z.string().nullable().optional(),
 });
 
 const updateBookSchema = z.object({
   title: z.string().min(1).optional(),
   subtitle: z.string().nullable().optional(),
   cover_image: z.string().nullable().optional(),
+  color: z.string().nullable().optional(),
 });
 
 export class BooksController {
   static async create(req: Request, res: Response) {
     try {
-      const { title } = createBookSchema.parse(req.body);
-      const book = await BooksService.create(title);
+      const { title, color } = createBookSchema.parse(req.body);
+      const book = await BooksService.create(title, color);
       res.status(201).json(book);
     } catch (error: any) {
       logger.error('Erro ao criar livro:', error);

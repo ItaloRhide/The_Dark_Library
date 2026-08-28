@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS books (
   title TEXT NOT NULL,
   subtitle TEXT,
   cover_image TEXT,
+  color TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

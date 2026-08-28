@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { BookSpine } from "./BookSpine";
+import { Header } from "./Header";
 import {
   booksApi,
   type Book,
@@ -94,27 +95,26 @@ export function LibraryView() {
 
   return (
     <div className="relative min-h-screen">
-      <header className="relative z-10 max-w-6xl mx-auto px-6 pt-14 pb-8 text-center">
-        <p className="font-display tracking-[0.4em] text-xs mb-3" style={{ color: "#E0AAFF" }}>BIBLIOTECA PESSOAL</p>
-        <h1 className="font-display text-5xl md:text-6xl font-bold" style={{ color: "#E0AAFF" }}>
-          The Dark Library
-        </h1>
-        <p className="mt-3 italic text-base md:text-lg" style={{ color: "#C77DFF" }}>
-          Cada livro é um mundo esperando para ser escrito.
-        </p>
-        <button
-          onClick={handleNew}
-          disabled={loading}
-          className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-display tracking-wider text-sm transition-all hover:scale-105 disabled:opacity-50"
-          style={{
-            background: "linear-gradient(135deg, var(--gold), var(--gold-deep))",
-            color: "#10002B",
-            boxShadow: "0 6px 20px -4px #9D4EDD80",
-          }}
-        >
-          {loading ? "Carregando..." : "+ Novo Livro"}
-        </button>
-      </header>
+      <Header
+        kicker="BIBLIOTECA PESSOAL"
+        title="The Dark Library"
+        description="Cada livro é um mundo esperando para ser escrito."
+        actions={
+          <button
+            onClick={handleNew}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-display tracking-wider text-sm transition-all hover:scale-105 disabled:opacity-50"
+            style={{
+              background: "linear-gradient(135deg, var(--gold), var(--gold-deep))",
+              color: "#10002B",
+              boxShadow: "0 6px 20px -4px #9D4EDD80",
+            }}
+          >
+            {loading ? "Carregando..." : "+ Novo Livro"}
+          </button>
+        }
+        className="mt-10"
+      />
 
       <main className="relative z-10 max-w-6xl mx-auto px-6 pb-24">
         {loading ? (
@@ -129,7 +129,7 @@ export function LibraryView() {
           <div className="space-y-16">
             {shelves.map((shelf, idx) => (
               <div key={idx} className="relative">
-                <div className="flex items-end justify-center gap-3 md:gap-4 min-h-[260px] pb-2 px-4">
+                <div className="flex flex-wrap items-end justify-center gap-3 md:gap-4 min-h-[260px] pb-2 px-4">
                   {shelf.map((s) => (
                     <BookSpine
                       key={s.id}

@@ -3,10 +3,10 @@ import fs from 'fs';
 import path from 'path';
 
 export class BooksService {
-  static async create(title: string) {
+  static async create(title: string, color?: string | null) {
     const res = await db.query(
-      'INSERT INTO books (title) VALUES ($1) RETURNING *',
-      [title]
+      'INSERT INTO books (title, color) VALUES ($1, $2) RETURNING *',
+      [title, color || null]
     );
     return res.rows[0];
   }
@@ -31,13 +31,14 @@ export class BooksService {
       title: book.title,
       subtitle: book.subtitle,
       cover_image: book.cover_image,
+      color: book.color,
       created_at: book.created_at,
       updated_at: book.updated_at,
       chapters: chaptersRes.rows,
     };
   }
 
-  static async update(id: string, params: { title?: string; subtitle?: string; cover_image?: string | null }) {
+  static async update(id: string, params: { title?: string; subtitle?: string; cover_image?: string | null; color?: string | null }) {
     // If a new cover is being uploaded, delete the old one first
     if (params.cover_image !== undefined) {
       const oldBook = await db.query('SELECT cover_image FROM books WHERE id = $1', [id]);
@@ -73,6 +74,10 @@ export class BooksService {
     if (params.cover_image !== undefined) {
       fields.push(`cover_image = $${idx++}`);
       values.push(params.cover_image === "" || params.cover_image === undefined ? null : params.cover_image);
+    }
+    if (params.color !== undefined) {
+      fields.push(`color = $${idx++}`);
+      values.push(params.color === "" || params.color === undefined ? null : params.color);
     }
 
     if (fields.length === 0) return this.findById(id);
