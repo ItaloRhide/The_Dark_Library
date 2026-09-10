@@ -17,8 +17,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
 import { BookPreview } from "./BookPreview";
+import { useAuth } from "@/lib/auth";
+import { LogOut } from "lucide-react";
 
 export function LibraryView() {
+  const { isOwner, user, logout } = useAuth();
   const [stories, setStories] = useState<Book[]>([]);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,18 +103,41 @@ export function LibraryView() {
         title="The Dark Library"
         description="Cada livro é um mundo esperando para ser escrito."
         actions={
-          <button
-            onClick={handleNew}
-            disabled={loading}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-display tracking-wider text-sm transition-all hover:scale-105 disabled:opacity-50"
-            style={{
-              background: "linear-gradient(135deg, var(--gold), var(--gold-deep))",
-              color: "#10002B",
-              boxShadow: "0 6px 20px -4px #9D4EDD80",
-            }}
-          >
-            {loading ? "Carregando..." : "+ Novo Livro"}
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {isOwner && (
+              <button
+                onClick={handleNew}
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-display tracking-wider text-sm transition-all hover:scale-105 disabled:opacity-50"
+                style={{
+                  background: "linear-gradient(135deg, var(--gold), var(--gold-deep))",
+                  color: "#10002B",
+                  boxShadow: "0 6px 20px -4px #9D4EDD80",
+                }}
+              >
+                {loading ? "Carregando..." : "+ Novo Livro"}
+              </button>
+            )}
+            {user && (
+              <button
+                onClick={() => {
+                  logout();
+                  navigate({ to: "/" });
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full font-display tracking-wider text-xs transition-all hover:scale-105 border"
+                style={{
+                  borderColor: "#9D4EDD66",
+                  color: "#E0AAFF",
+                  background: "rgba(16,0,43,0.4)",
+                }}
+                title={`Saindo como ${user.email}`}
+              >
+                {user.role === "owner" ? "👑 " : "📖 "}
+                <span className="max-w-[140px] truncate">{user.email}</span>
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         }
         className="mt-10"
       />
@@ -134,6 +160,7 @@ export function LibraryView() {
                     <BookSpine
                       key={s.id}
                       story={s}
+                      isOwner={isOwner}
                       onOpen={() => setPreviewId(s.id)}
                       onEdit={() => navigate({ to: "/book/$bookId/edit", params: { bookId: s.id } })}
                       onDelete={() => handleDelete(s.id)}
@@ -160,6 +187,7 @@ export function LibraryView() {
       {previewStory && (
         <BookPreview
           story={previewStory}
+          isOwner={isOwner}
           onClose={() => setPreviewId(null)}
           onEdit={() => {
             setPreviewId(null);

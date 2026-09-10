@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import bookRoutes from './modules/books/books.routes';
 import chapterRoutes from './modules/chapters/chapters.routes';
+import authRoutes from './modules/auth/auth.routes';
 import logger from './utils/logger';
 
 const app = express();
@@ -20,6 +21,7 @@ app.use((req, res, next) => {
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Routes
+app.use('/auth', authRoutes);
 app.use('/books', bookRoutes);
 app.use('/chapters', chapterRoutes);
 

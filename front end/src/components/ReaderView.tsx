@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { booksApi, getImageUrl, type Book, type Chapter } from "@/lib/api";
 import { bookCover } from "./BookSpine";
 import { Header } from "./Header";
+import { useAuth } from "@/lib/auth";
 
 type Props = {
   storyId: string;
@@ -55,6 +56,7 @@ function buildPages(book: Book): Page[] {
 }
 
 export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props) {
+  const { isOwner } = useAuth();
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -154,17 +156,19 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
             >
               ← Biblioteca
             </button>
-            <button
-              onClick={onEdit}
-              className="px-4 py-2 rounded-full text-sm font-display tracking-wider transition hover:scale-105"
-              style={{
-                background: "linear-gradient(135deg, #E0AAFF, #C77DFF)",
-                color: "#10002B",
-                boxShadow: "0 6px 20px -4px #C77DFF80",
-              }}
-            >
-              ✎ Editar
-            </button>
+            {isOwner && (
+              <button
+                onClick={onEdit}
+                className="px-4 py-2 rounded-full text-sm font-display tracking-wider transition hover:scale-105"
+                style={{
+                  background: "linear-gradient(135deg, #E0AAFF, #C77DFF)",
+                  color: "#10002B",
+                  boxShadow: "0 6px 20px -4px #C77DFF80",
+                }}
+              >
+                ✎ Editar
+              </button>
+            )}
           </div>
         }
         className="mb-6"

@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { ChaptersController } from './chapters.controller';
+import { requireAuth, requireOwner } from '../../middlewares/auth.middleware';
 
 const router = Router();
 
-router.post('/', ChaptersController.create);
-router.get('/:id', ChaptersController.get);
-router.patch('/:id', ChaptersController.update);
-router.delete('/:id', ChaptersController.delete);
+router.post('/', requireOwner, ChaptersController.create);
+router.get('/:id', requireAuth, ChaptersController.get);
+router.patch('/:id', requireOwner, ChaptersController.update);
+router.delete('/:id', requireOwner, ChaptersController.delete);
 
 export default router;

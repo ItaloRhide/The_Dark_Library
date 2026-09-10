@@ -1,19 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LibraryView } from "@/components/LibraryView";
+import { HomeView } from "@/components/HomeView";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "The Dark Library — Escreva suas histórias" },
+      { title: "The Dark Library" },
       {
         name: "description",
         content:
-          "Uma biblioteca pessoal mágica para escrever, organizar e ler suas próprias histórias e fanfics.",
+          "Uma biblioteca de histórias esperando para ser explorada.",
       },
-      { property: "og:title", content: "The Dark Library — Escreva suas histórias" },
+      { property: "og:title", content: "The Dark Library" },
       {
         property: "og:description",
-        content: "Crie livros, escreva e leia em uma biblioteca interativa.",
+        content: "Uma biblioteca de histórias esperando para ser explorada.",
       },
     ],
   }),
@@ -21,5 +21,5 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  return <LibraryView />;
+  return <HomeView />;
 }

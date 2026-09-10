@@ -2,9 +2,18 @@ import axios from 'axios';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: API_BASE_URL,
 });
+
+// Token de autenticação (preenchido pelo AuthProvider)
+export const setAuthToken = (token: string | null) => {
+  if (token) {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common.Authorization;
+  }
+};
 
 // Helper to get full URL for images
 export const getImageUrl = (path: string | undefined) => {
@@ -57,4 +66,20 @@ export const chaptersApi = {
   update: (id: string, data: { title?: string; content?: string; orderIndex?: number }) =>
     api.patch<Chapter>(`/chapters/${id}`, data).then((res) => res.data),
   delete: (id: string) => api.delete(`/chapters/${id}`),
+};
+
+export type User = {
+  id: string;
+  email: string;
+  role: "owner" | "reader";
+};
+
+export const authApi = {
+  register: (email: string, password: string) =>
+    api.post<{ email: string }>('/auth/register', { email, password }).then((res) => res.data),
+  verify: (email: string, code: string) =>
+    api.post<{ email: string; verified: boolean }>('/auth/verify', { email, code }).then((res) => res.data),
+  login: (email: string, password: string) =>
+    api.post<{ token: string; user: User }>('/auth/login', { email, password }).then((res) => res.data),
+  me: () => api.get<{ user: User }>('/auth/me').then((res) => res.data),
 };

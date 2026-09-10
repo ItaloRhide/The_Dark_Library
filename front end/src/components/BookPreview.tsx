@@ -7,9 +7,10 @@ type Props = {
   onClose: () => void;
   onEdit: () => void;
   onRead: () => void;
+  isOwner?: boolean;
 };
 
-export function BookPreview({ story, onClose, onEdit, onRead }: Props) {
+export function BookPreview({ story, onClose, onEdit, onRead, isOwner = true }: Props) {
   const [opening, setOpening] = useState(false);
   const coverBackground = bookCover(story);
 
@@ -149,17 +150,19 @@ export function BookPreview({ story, onClose, onEdit, onRead }: Props) {
           >
             ← Voltar
           </button>
-          <button
-            onClick={handleEdit}
-            className="px-5 py-2.5 rounded-full text-sm font-display tracking-wider transition hover:scale-105"
-            style={{
-              background: "linear-gradient(135deg, #9D4EDD, #7B2CBF)",
-              color: "#fff",
-              boxShadow: "0 6px 20px -4px #9D4EDD80",
-            }}
-          >
-            ✎ Editar
-          </button>
+          {isOwner && (
+            <button
+              onClick={handleEdit}
+              className="px-5 py-2.5 rounded-full text-sm font-display tracking-wider transition hover:scale-105"
+              style={{
+                background: "linear-gradient(135deg, #9D4EDD, #7B2CBF)",
+                color: "#fff",
+                boxShadow: "0 6px 20px -4px #9D4EDD80",
+              }}
+            >
+              ✎ Editar
+            </button>
+          )}
           <button
             onClick={handleRead}
             className="px-5 py-2.5 rounded-full text-sm font-display tracking-wider transition hover:scale-105"

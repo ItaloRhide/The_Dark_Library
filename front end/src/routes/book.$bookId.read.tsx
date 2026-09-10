@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ReaderView } from "@/components/ReaderView";
+import { RequireAuth } from "@/components/RouteGuards";
 import { z } from "zod";
 
 export const Route = createFileRoute("/book/$bookId/read")({
@@ -15,11 +16,13 @@ function BookRead() {
   const navigate = useNavigate();
 
   return (
-    <ReaderView
-      storyId={bookId}
-      initialChapterId={chapterId}
-      onBack={() => navigate({ to: "/" })}
-      onEdit={() => navigate({ to: "/book/$bookId/edit", params: { bookId } })}
-    />
+    <RequireAuth>
+      <ReaderView
+        storyId={bookId}
+        initialChapterId={chapterId}
+        onBack={() => navigate({ to: "/library" })}
+        onEdit={() => navigate({ to: "/book/$bookId/edit", params: { bookId } })}
+      />
+    </RequireAuth>
   );
 }

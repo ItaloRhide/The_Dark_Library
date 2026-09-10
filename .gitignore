@@ -20,6 +20,12 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Launcher executável
+launcher.bat
+
+# Controle local de tarefas
+TODOS.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

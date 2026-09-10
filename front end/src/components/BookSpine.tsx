@@ -6,9 +6,10 @@ type Props = {
   onEdit: () => void;
   onDelete: () => void;
   onRename: () => void;
+  isOwner?: boolean;
 };
 
-export function BookSpine({ story, onOpen, onEdit, onDelete, onRename }: Props) {
+export function BookSpine({ story, onOpen, onEdit, onDelete, onRename, isOwner = true }: Props) {
   const cover = bookCover(story);
   const height = 200 + (story.title.length % 5) * 14;
   return (
@@ -49,11 +50,13 @@ export function BookSpine({ story, onOpen, onEdit, onDelete, onRename }: Props) 
           {story.title}
         </span>
       </button>
-      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 absolute -bottom-9 flex gap-1 text-[10px] bg-card/95 backdrop-blur px-2 py-1 rounded-md shadow-soft border border-border z-20">
-        <button onClick={onEdit} className="px-1.5 py-0.5 rounded hover:bg-accent/50 transition">Escrever</button>
-        <button onClick={onRename} className="px-1.5 py-0.5 rounded hover:bg-accent/50 transition">Renomear</button>
-        <button onClick={onDelete} className="px-1.5 py-0.5 rounded hover:bg-destructive/20 text-destructive transition">×</button>
-      </div>
+      {isOwner && (
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 absolute -bottom-9 flex gap-1 text-[10px] bg-card/95 backdrop-blur px-2 py-1 rounded-md shadow-soft border border-border z-20">
+          <button onClick={onEdit} className="px-1.5 py-0.5 rounded hover:bg-accent/50 transition">Escrever</button>
+          <button onClick={onRename} className="px-1.5 py-0.5 rounded hover:bg-accent/50 transition">Renomear</button>
+          <button onClick={onDelete} className="px-1.5 py-0.5 rounded hover:bg-destructive/20 text-destructive transition">×</button>
+        </div>
+      )}
     </div>
   );
 }
