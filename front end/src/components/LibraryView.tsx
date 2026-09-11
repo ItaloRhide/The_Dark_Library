@@ -17,14 +17,18 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
 import { BookPreview } from "./BookPreview";
+import { FeedbackInbox } from "./FeedbackInbox";
 import { useAuth } from "@/lib/auth";
 import { LogOut } from "lucide-react";
+import { feedbackApi } from "@/lib/api";
 
 export function LibraryView() {
   const { isOwner, user, logout } = useAuth();
   const [stories, setStories] = useState<Book[]>([]);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
   const navigate = useNavigate();
 
   // Dialog states
@@ -47,6 +51,20 @@ export function LibraryView() {
   useEffect(() => {
     refreshStories();
   }, []);
+
+  const refreshUnread = async () => {
+    if (!isOwner) return;
+    try {
+      const items = await feedbackApi.list();
+      setUnread(items.filter((f) => f.status === "new").length);
+    } catch {
+      setUnread(0);
+    }
+  };
+
+  useEffect(() => {
+    refreshUnread();
+  }, [isOwner]);
 
   const handleNew = () => {
     setDialogMode("create");
@@ -104,6 +122,28 @@ export function LibraryView() {
         description="Cada livro é um mundo esperando para ser escrito."
         actions={
           <div className="flex flex-wrap items-center justify-center gap-3">
+            {isOwner && (
+              <button
+                onClick={() => setInboxOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full font-display tracking-wider text-xs transition-all hover:scale-105 border"
+                style={{
+                  borderColor: "#C77DFF66",
+                  color: "#E0AAFF",
+                  background: "rgba(16,0,43,0.4)",
+                }}
+                title="Caixa de feedback dos leitores"
+              >
+                💬 Feedback
+                {unread > 0 && (
+                  <span
+                    className="flex items-center justify-center min-w-5 h-5 px-1 rounded-full text-[10px] font-bold"
+                    style={{ background: "linear-gradient(135deg, #E0AAFF, #C77DFF)", color: "#10002B" }}
+                  >
+                    {unread}
+                  </span>
+                )}
+              </button>
+            )}
             {isOwner && (
               <button
                 onClick={handleNew}
@@ -196,6 +236,15 @@ export function LibraryView() {
           onRead={() => {
             setPreviewId(null);
             navigate({ to: "/book/$bookId/read", params: { bookId: previewStory.id } });
+          }}
+        />
+      )}
+
+      {inboxOpen && (
+        <FeedbackInbox
+          onClose={() => {
+            setInboxOpen(false);
+            refreshUnread();
           }}
         />
       )}

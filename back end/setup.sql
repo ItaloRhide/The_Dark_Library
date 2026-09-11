@@ -75,3 +75,16 @@ CREATE TABLE IF NOT EXISTS reading_progress (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   PRIMARY KEY (user_id, book_id)
 );
+
+-- Table: feedback
+CREATE TABLE IF NOT EXISTS feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_email TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'other',
+  message TEXT NOT NULL,
+  page TEXT,
+  status TEXT NOT NULL DEFAULT 'new',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status);

@@ -85,9 +85,23 @@ export const progressApi = {
 
 export type FeedbackType = "bug" | "suggestion" | "other";
 
+export type Feedback = {
+  id: string;
+  user_id: string;
+  user_email: string;
+  type: FeedbackType;
+  message: string;
+  page: string | null;
+  status: "new" | "read" | "resolved";
+  created_at: string;
+};
+
 export const feedbackApi = {
   submit: (data: { type: FeedbackType; message: string; page?: string }) =>
-    api.post<{ ok: boolean }>("/feedback", data).then((res) => res.data),
+    api.post<Feedback>("/feedback", data).then((res) => res.data),
+  list: () => api.get<Feedback[]>("/feedback").then((res) => res.data),
+  setStatus: (id: string, status: Feedback["status"]) =>
+    api.patch<Feedback>(`/feedback/${id}`, { status }).then((res) => res.data),
 };
 
 export type User = {

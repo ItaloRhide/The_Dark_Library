@@ -106,12 +106,11 @@ export function FeedbackButton() {
               <div className="mt-8 text-center">
                 <div className="text-5xl mb-4">🕯️</div>
                 <p className="italic" style={{ color: "#C77DFF" }}>
-                  Obrigado por ajudar a melhorar a biblioteca.
+                  Obrigado por ajudar a melhorar a biblioteca!
                 </p>
                 <p className="text-sm mt-2 opacity-70" style={{ color: "#E0AAFF" }}>
-                  Sua mensagem foi enviada para{" "}
-                  <strong style={{ color: "#E0AAFF" }}>dark.library.suport@gmail.com</strong> e será
-                  respondida.
+                  Sua mensagem foi registrada e será lida pela equipe. A resposta chega na
+                  própria biblioteca.
                 </p>
               </div>
             ) : (
