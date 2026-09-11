@@ -178,6 +178,7 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
   const [spread, setSpread] = useState(0);
   const [flipping, setFlipping] = useState<"next" | "prev" | null>(null);
   const [savedProgress, setSavedProgress] = useState<ReadingProgress | null>(null);
+  const [tocOpen, setTocOpen] = useState(false);
   const hasNavigated = useRef(false);
 
   useEffect(() => {
@@ -304,8 +305,16 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
     }, 600);
   };
 
+  const currentChapterId = useMemo(() => {
+    const p = pages[spread];
+    if (!p) return null;
+    if (p.kind === "chapter-start" || p.kind === "text") return p.chapterId;
+    return null;
+  }, [pages, spread]);
+
   const jumpToChapter = (chapterId: string) => {
     hasNavigated.current = true;
+    setTocOpen(false);
     const i = pages.findIndex(
       (p) => p.kind === "chapter-start" && p.chapterId === chapterId
     );
@@ -317,7 +326,10 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") next();
       if (e.key === "ArrowLeft") prev();
-      if (e.key === "Escape") onBack();
+      if (e.key === "Escape") {
+        if (tocOpen) setTocOpen(false);
+        else onBack();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -344,6 +356,14 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
         title={book.title}
         actions={
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setTocOpen(true)}
+              className="px-4 py-2 rounded-full text-sm font-display tracking-wider border transition hover:bg-white/5"
+              style={{ borderColor: "#9D4EDD66", color: "#E0AAFF" }}
+              title="Ver índice de capítulos"
+            >
+              ☰ Índice
+            </button>
             <button
               onClick={onBack}
               className="px-4 py-2 rounded-full text-sm font-display tracking-wider border transition hover:bg-white/5"
@@ -430,6 +450,67 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
         </span>
         <button onClick={next} disabled={spread + 2 >= total} className="px-4 py-2 rounded border border-border/40 disabled:opacity-30 hover:bg-card/20 transition">Próxima ›</button>
       </div>
+
+      {tocOpen && (
+        <div className="fixed inset-0 z-50 flex" style={{ fontFamily: "var(--font-body)" }}>
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setTocOpen(false)}
+          />
+          <div
+            className="relative ml-auto h-full w-80 max-w-[85vw] overflow-y-auto border-l p-5"
+            style={{
+              background: "linear-gradient(180deg, #1a0033f2, #10002Bf2)",
+              borderColor: "#9D4EDD33",
+              boxShadow: "-20px 0 60px -20px #000000aa",
+            }}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-display tracking-[0.3em] text-xs" style={{ color: "#C77DFF" }}>
+                ÍNDICE
+              </h2>
+              <button
+                onClick={() => setTocOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full border transition hover:bg-white/10"
+                style={{ borderColor: "#9D4EDD66", color: "#E0AAFF" }}
+                title="Fechar índice"
+              >
+                ✕
+              </button>
+            </div>
+            <p
+              className="font-display text-lg mb-4 break-words leading-snug"
+              style={{ color: "#E0AAFF" }}
+            >
+              {book.title}
+            </p>
+            <ul className="space-y-1">
+              {(book.chapters || []).map((c, i) => {
+                const active = c.id === currentChapterId;
+                return (
+                  <li key={c.id} title={c.title || "Sem título"}>
+                    <button
+                      onClick={() => jumpToChapter(c.id)}
+                      className="w-full text-left flex items-center gap-3 px-3 py-2 rounded transition"
+                      style={{
+                        color: active ? "#10002B" : "#E0AAFFcc",
+                        background: active ? "#C77DFF" : "transparent",
+                      }}
+                    >
+                      <span className="font-display text-xs opacity-70 shrink-0">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <span className="truncate min-w-0 text-sm">
+                        {c.title || "Sem título"}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
