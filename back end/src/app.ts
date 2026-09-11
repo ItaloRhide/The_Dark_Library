@@ -6,6 +6,7 @@ import chapterRoutes from './modules/chapters/chapters.routes';
 import authRoutes from './modules/auth/auth.routes';
 import progressRoutes from './modules/progress/progress.routes';
 import feedbackRoutes from './modules/feedback/feedback.routes';
+import healthRoutes from './modules/health/health.routes';
 import logger from './utils/logger';
 
 const app = express();
@@ -28,6 +29,7 @@ app.use('/books', bookRoutes);
 app.use('/chapters', chapterRoutes);
 app.use('/progress', progressRoutes);
 app.use('/feedback', feedbackRoutes);
+app.use('/health', healthRoutes);
 
 // Simple Health Check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
