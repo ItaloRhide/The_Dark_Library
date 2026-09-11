@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { BooksService } from './books.service';
 import { z } from 'zod';
 import logger from '../../utils/logger';
+import { supabaseStorage } from '../../services/supabase-storage';
 
 const createBookSchema = z.object({
   title: z.string().min(1),
@@ -39,7 +40,7 @@ export class BooksController {
 
   static async get(req: Request, res: Response) {
     try {
-      const book = await BooksService.findById(req.params.id);
+      const book = await BooksService.findById(req.params.id as string);
       if (!book) return res.status(404).json({ error: 'Book not found' });
       res.json(book);
     } catch (error: any) {
@@ -51,7 +52,7 @@ export class BooksController {
   static async update(req: Request, res: Response) {
     try {
       const data = updateBookSchema.parse(req.body);
-      const book = await BooksService.update(req.params.id, data);
+      const book = await BooksService.update(req.params.id as string, data);
       if (!book) return res.status(404).json({ error: 'Book not found' });
       res.json(book);
     } catch (error: any) {
@@ -66,9 +67,22 @@ export class BooksController {
         return res.status(400).json({ error: 'Nenhum arquivo enviado' });
       }
 
-      const coverUrl = `/uploads/covers/${req.file.filename}`;
-      const book = await BooksService.update(req.params.id, { cover_image: coverUrl });
-      
+      const bookId = req.params.id as string;
+      const ext = req.file.originalname.split('.').pop() || 'png';
+      const storagePath = `${bookId}/cover.${ext}`;
+
+      const publicUrl = await supabaseStorage.uploadBuffer(
+        'covers',
+        storagePath,
+        req.file.buffer,
+        req.file.mimetype,
+      );
+
+      if (!publicUrl) {
+        return res.status(500).json({ error: 'Falha ao fazer upload da capa' });
+      }
+
+      const book = await BooksService.update(bookId, { cover_image: publicUrl });
       if (!book) return res.status(404).json({ error: 'Livro não encontrado' });
       res.json(book);
     } catch (error: any) {
@@ -79,7 +93,7 @@ export class BooksController {
 
   static async delete(req: Request, res: Response) {
     try {
-      await BooksService.delete(req.params.id);
+      await BooksService.delete(req.params.id as string);
       res.status(204).send();
     } catch (error: any) {
       logger.error(`Erro ao deletar livro ${req.params.id}:`, error);

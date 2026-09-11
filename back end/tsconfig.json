@@ -6,14 +6,9 @@
     "outDir": "dist",
 
     // Environment Settings
-    // See also https://aka.ms/tsconfig/module
     "module": "commonjs",
     "target": "es2020",
-    "types": [],
-    // For nodejs:
-    // "lib": ["esnext"],
-    // "types": ["node"],
-    // and npm install -D @types/node
+    "types": ["node"],
 
     // Other Outputs
     "sourceMap": true,
@@ -22,7 +17,6 @@
 
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
 
     // Style Options
     // "noImplicitReturns": true,
@@ -35,7 +29,6 @@
     // Recommended Options
     "strict": true,
     "jsx": "react-jsx",
-    "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",

@@ -22,7 +22,7 @@ const storage = multer.diskStorage({
 
 export const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // Aumentado para 10MB para testes
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     console.log(`[Multer] Recebendo arquivo: ${file.originalname} (${file.mimetype})`);
     const allowedTypes = /jpeg|jpg|png|webp/;
@@ -32,6 +32,19 @@ export const upload = multer({
       return cb(null, true);
     }
     console.error(`[Multer] Tipo de arquivo não permitido: ${file.mimetype}`);
+    cb(new Error('Apenas imagens (jpeg, jpg, png, webp) são permitidas!'));
+  },
+});
+
+const memoryStorage = multer.memoryStorage();
+export const memoryUpload = multer({
+  storage: memoryStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) return cb(null, true);
     cb(new Error('Apenas imagens (jpeg, jpg, png, webp) são permitidas!'));
   },
 });

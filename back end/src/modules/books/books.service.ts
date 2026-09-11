@@ -1,6 +1,6 @@
 import { db } from '../../db/connection';
-import fs from 'fs';
-import path from 'path';
+import logger from '../../utils/logger';
+import { supabaseStorage } from '../../services/supabase-storage';
 
 export class BooksService {
   static async create(title: string, color?: string | null) {
@@ -38,23 +38,16 @@ export class BooksService {
     };
   }
 
-  static async update(id: string, params: { title?: string; subtitle?: string; cover_image?: string | null; color?: string | null }) {
-    // If a new cover is being uploaded, delete the old one first
+  static async update(id: string, params: { title?: string; subtitle?: string | null; cover_image?: string | null; color?: string | null }) {
+    // Se uma nova capa foi enviada, remove a antiga do Supabase Storage
     if (params.cover_image !== undefined) {
       const oldBook = await db.query('SELECT cover_image FROM books WHERE id = $1', [id]);
-      if (oldBook.rows.length > 0 && oldBook.rows[0].cover_image) {
-        const oldCoverPath = oldBook.rows[0].cover_image;
-        // ONLY delete if the path is different from the new one
-        if (oldCoverPath && oldCoverPath !== params.cover_image && oldCoverPath.startsWith('/uploads/')) {
-          const filePath = path.join(process.cwd(), oldCoverPath);
-          if (fs.existsSync(filePath)) {
-            try {
-              fs.unlinkSync(filePath);
-              console.log(`[Service] Capa antiga removida: ${oldCoverPath}`);
-            } catch (err) {
-              console.error(`[Service] Erro ao remover capa antiga: ${err}`);
-            }
-          }
+      const oldCover = oldBook.rows.length > 0 ? oldBook.rows[0].cover_image : null;
+      if (oldCover && oldCover !== params.cover_image) {
+        const storagePath = this.publicUrlToStoragePath(oldCover, 'covers');
+        if (storagePath) {
+          await supabaseStorage.deleteFile('covers', storagePath);
+          logger.info(`[BooksService] Capa antiga removida do Storage: ${storagePath}`);
         }
       }
     }
@@ -88,17 +81,21 @@ export class BooksService {
     return res.rows[0];
   }
 
+  static publicUrlToStoragePath(url: string, bucket: string): string | null {
+    const marker = `/object/public/${bucket}/`;
+    const idx = url.indexOf(marker);
+    if (idx === -1) return null;
+    return decodeURIComponent(url.slice(idx + marker.length));
+  }
+
   static async delete(id: string) {
-    // Get the book first to find the cover image path
     const bookRes = await db.query('SELECT cover_image FROM books WHERE id = $1', [id]);
-    if (bookRes.rows.length > 0 && bookRes.rows[0].cover_image) {
-      const coverPath = bookRes.rows[0].cover_image;
-      // Ensure it's a local upload path
-      if (coverPath.startsWith('/uploads/')) {
-        const filePath = path.join(process.cwd(), coverPath);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
+    const coverUrl = bookRes.rows.length > 0 ? bookRes.rows[0].cover_image : null;
+    if (coverUrl) {
+      const storagePath = this.publicUrlToStoragePath(coverUrl, 'covers');
+      if (storagePath) {
+        await supabaseStorage.deleteFile('covers', storagePath);
+        logger.info(`[BooksService] Capa removida do Storage: ${storagePath}`);
       }
     }
 

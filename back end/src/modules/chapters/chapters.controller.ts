@@ -29,7 +29,7 @@ export class ChaptersController {
 
   static async get(req: Request, res: Response) {
     try {
-      const chapter = await ChaptersService.findById(req.params.id);
+      const chapter = await ChaptersService.findById(req.params.id as string);
       if (!chapter) return res.status(404).json({ error: 'Chapter not found' });
       res.json(chapter);
     } catch (error: any) {
@@ -41,7 +41,7 @@ export class ChaptersController {
   static async update(req: Request, res: Response) {
     try {
       const data = updateChapterSchema.parse(req.body);
-      const chapter = await ChaptersService.update(req.params.id, data);
+      const chapter = await ChaptersService.update(req.params.id as string, data);
       if (!chapter) return res.status(404).json({ error: 'Chapter not found' });
       res.json(chapter);
     } catch (error: any) {
@@ -52,7 +52,7 @@ export class ChaptersController {
 
   static async delete(req: Request, res: Response) {
     try {
-      await ChaptersService.delete(req.params.id);
+      await ChaptersService.delete(req.params.id as string);
       res.status(204).send();
     } catch (error: any) {
       logger.error(`Erro ao deletar capítulo ${req.params.id}:`, error);
