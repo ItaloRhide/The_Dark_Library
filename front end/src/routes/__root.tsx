@@ -1,5 +1,6 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { AnimatedLibraryBackground } from "@/components/AnimatedLibraryBackground";
+import { FeedbackButton } from "@/components/FeedbackButton";
 import { AuthProvider } from "@/lib/auth";
 
 import appCss from "../styles.css?url";
@@ -80,6 +81,7 @@ function RootComponent() {
     <AuthProvider>
       <AnimatedLibraryBackground />
       <Outlet />
+      <FeedbackButton />
     </AuthProvider>
   );
 }

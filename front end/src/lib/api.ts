@@ -83,6 +83,13 @@ export const progressApi = {
       .then((res) => res.data),
 };
 
+export type FeedbackType = "bug" | "suggestion" | "other";
+
+export const feedbackApi = {
+  submit: (data: { type: FeedbackType; message: string; page?: string }) =>
+    api.post<{ ok: boolean }>("/feedback", data).then((res) => res.data),
+};
+
 export type User = {
   id: string;
   email: string;
