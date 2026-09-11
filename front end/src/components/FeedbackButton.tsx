@@ -24,8 +24,8 @@ export function FeedbackButton() {
   const [page, setPage] = useState("");
 
   useEffect(() => {
-    setPage(`${location.pathname}${location.search}`);
-  }, [location.pathname, location.search]);
+    setPage(`${location.pathname}${location.searchStr}`);
+  }, [location.pathname, location.searchStr]);
 
   useEffect(() => {
     if (!open) return;
