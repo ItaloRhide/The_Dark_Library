@@ -1,4 +1,5 @@
 import type { Book } from "@/lib/api";
+import { Trash2 } from "lucide-react";
 
 type Props = {
   story: Book;
@@ -51,11 +52,19 @@ export function BookSpine({ story, onOpen, onEdit, onDelete, onRename, isOwner =
         </span>
       </button>
       {isOwner && (
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 absolute -bottom-9 flex gap-1 text-[10px] bg-card/95 backdrop-blur px-2 py-1 rounded-md shadow-soft border border-border z-20">
-          <button onClick={onEdit} className="px-1.5 py-0.5 rounded hover:bg-accent/50 transition">Escrever</button>
-          <button onClick={onRename} className="px-1.5 py-0.5 rounded hover:bg-accent/50 transition">Renomear</button>
-          <button onClick={onDelete} className="px-1.5 py-0.5 rounded hover:bg-destructive/20 text-destructive transition">×</button>
-        </div>
+        <>
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 absolute -bottom-9 flex gap-1 text-[10px] bg-card/95 backdrop-blur px-2 py-1 rounded-md shadow-soft border border-border z-20">
+            <button onClick={onEdit} className="px-1.5 py-0.5 rounded hover:bg-accent/50 transition">Escrever</button>
+            <button onClick={onRename} className="px-1.5 py-0.5 rounded hover:bg-accent/50 transition">Renomear</button>
+          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            title="Deletar livro"
+            className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 z-30 w-6 h-6 flex items-center justify-center rounded-full bg-red-900/80 hover:bg-red-700 text-red-200 hover:text-white shadow-lg"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </>
       )}
     </div>
   );

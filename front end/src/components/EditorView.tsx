@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { booksApi, chaptersApi, getImageUrl, type Book, type Chapter } from "@/lib/api";
+import { Trash2 } from "lucide-react";
 
 type Props = {
   storyId: string;
@@ -38,6 +39,16 @@ export function EditorView({ storyId, onBack, onRead }: Props) {
   useEffect(() => {
     chaptersRef.current = chapters;
   }, [chapters]);
+
+  const deleteBook = async () => {
+    if (!confirm("Tem certeza que deseja deletar este livro? Esta ação não pode ser desfeita.")) return;
+    try {
+      await booksApi.delete(storyId);
+      onBack();
+    } catch (err) {
+      console.error("Failed to delete book", err);
+    }
+  };
 
   const active = useMemo(
     () => chapters.find((c) => c.id === activeId) ?? null,
@@ -182,10 +193,10 @@ export function EditorView({ storyId, onBack, onRead }: Props) {
           <>
             <ul className="space-y-1 mt-2">
               {chapters.map((c, i) => (
-                <li key={c.id} title={c.title || "Sem título"}>
+                <li key={c.id} title={c.title || "Sem título"} className="group/ch flex items-center">
                   <button
                     onClick={() => setActiveId(c.id)}
-                    className="w-full text-left rounded text-sm transition group flex items-baseline px-2 py-1.5 gap-2"
+                    className="flex-1 text-left rounded text-sm transition group flex items-baseline px-2 py-1.5 gap-2"
                     style={{
                       color: activeId === c.id ? "#10002B" : "#E0AAFFcc",
                       background: activeId === c.id ? "#C77DFF" : "transparent",
@@ -193,6 +204,13 @@ export function EditorView({ storyId, onBack, onRead }: Props) {
                   >
                     <span className="font-display text-xs opacity-60">{String(i + 1).padStart(2, "0")}</span>
                     <span className="truncate">{c.title || "Sem título"}</span>
+                  </button>
+                  <button
+                    onClick={() => deleteChapter(c.id)}
+                    title="Deletar capítulo"
+                    className="opacity-0 group-hover/ch:opacity-100 transition-opacity shrink-0 w-5 h-5 flex items-center justify-center rounded text-red-400 hover:text-red-300 hover:bg-red-900/40"
+                  >
+                    <Trash2 className="w-3 h-3" />
                   </button>
                 </li>
               ))}
@@ -227,19 +245,28 @@ export function EditorView({ storyId, onBack, onRead }: Props) {
                 ? "Capa & Sumário"
                 : `Capítulo ${chapters.findIndex((c) => c.id === activeId) + 1}`}
             </span>
-            <button
-              onClick={() =>
-                onRead(activeId === "toc" ? undefined : activeId)
-              }
-              className="text-sm font-display tracking-wide px-5 py-2 rounded-full transition hover:scale-105"
-              style={{
-                background: "linear-gradient(135deg, #E0AAFF, #C77DFF)",
-                color: "#10002B",
-                boxShadow: "0 6px 20px -4px #C77DFF80",
-              }}
-            >
-              📖 Ler
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={deleteBook}
+                title="Deletar livro"
+                className="text-sm p-2 rounded-full transition hover:bg-red-900/40 text-red-400 hover:text-red-300"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() =>
+                  onRead(activeId === "toc" ? undefined : activeId)
+                }
+                className="text-sm font-display tracking-wide px-5 py-2 rounded-full transition hover:scale-105"
+                style={{
+                  background: "linear-gradient(135deg, #E0AAFF, #C77DFF)",
+                  color: "#10002B",
+                  boxShadow: "0 6px 20px -4px #C77DFF80",
+                }}
+              >
+                📖 Ler
+              </button>
+            </div>
           </div>
         </div>
 
@@ -470,9 +497,10 @@ function TitleAndToc({
               </button>
               <button
                 onClick={() => onDeleteChapter(c.id)}
-                className="px-1.5 py-0.5 rounded text-destructive hover:bg-destructive/10"
+                className="px-1.5 py-0.5 rounded text-red-600 hover:bg-red-100"
+                title="Deletar capítulo"
               >
-                ×
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
           </li>
