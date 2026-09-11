@@ -23,7 +23,8 @@ export class FeedbackController {
       res.json({ ok: true });
     } catch (error: any) {
       logger.error('[Feedback] Erro ao processar feedback:', error);
-      res.status(400).json({ error: error.message });
+      const status = error.message === 'EMAIL_SEND_FAILED' ? 500 : 400;
+      res.status(status).json({ error: error.message });
     }
   }
 }

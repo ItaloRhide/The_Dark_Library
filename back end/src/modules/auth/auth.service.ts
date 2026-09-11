@@ -19,12 +19,18 @@ function smtpConfigured() {
 const smtpUser = process.env.SMTP_USER;
 const smtpPass = process.env.SMTP_PASS;
 const smtpTransporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
+  family: 4,
   auth: {
     user: smtpUser,
     pass: smtpPass,
   },
-});
+  connectionTimeout: 15000,
+  socketTimeout: 20000,
+  greetingTimeout: 10000,
+} as any);
 
 function createVerificationCode() {
   return crypto.randomInt(100000, 1000000).toString();
