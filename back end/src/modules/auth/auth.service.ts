@@ -1,75 +1,32 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import nodemailer from 'nodemailer';
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
 import { db } from '../../db/connection';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 const JWT_EXPIRES_IN: jwt.SignOptions['expiresIn'] = (process.env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn']) || '7d';
 
-// --- Email (Gmail SMTP via App Password) ---
-// Placeholders do template são tratados como "não configurado" (modo dev).
-function smtpConfigured() {
-  const user = (process.env.SMTP_USER || '').trim();
-  const pass = (process.env.SMTP_PASS || '').trim();
-  return user.length > 0 && pass.length > 0 && !user.includes('COLOQUE') && !pass.includes('COLOQUE');
-}
-const smtpUser = process.env.SMTP_USER;
-const smtpPass = process.env.SMTP_PASS;
-const smtpTransporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  family: 4,
-  auth: {
-    user: smtpUser,
-    pass: smtpPass,
-  },
-  connectionTimeout: 15000,
-  socketTimeout: 20000,
-  greetingTimeout: 10000,
-} as any);
+// --- Email via Resend (HTTPS) — SMTP é bloqueado no Render ---
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const EMAIL_FROM = process.env.RESEND_FROM || 'The Dark Library <noreply@thedarklibrary.com>';
 
 function createVerificationCode() {
   return crypto.randomInt(100000, 1000000).toString();
 }
 
-const EMAIL_HEADER_PATH = path.join(__dirname, '../../assets/header-email.png');
-const EMAIL_HEADER_CID = 'emailheader';
-
-function emailHeaderPath(): string | null {
-  return fs.existsSync(EMAIL_HEADER_PATH) ? EMAIL_HEADER_PATH : null;
-}
-
-function emailHeaderBlock(): string {
-  if (emailHeaderPath()) {
-    return `
-      <div style="padding:0; border-bottom:1px solid #9D4EDD33;">
-        <img src="cid:${EMAIL_HEADER_CID}" alt="The Dark Library" width="640" style="display:block; width:100%; height:auto;" />
-      </div>
-      <div style="padding:10px 36px 0; text-align:center;">
-        <p style="margin:0; font-size:11px; letter-spacing:4px; color:#C77DFF; font-family:Georgia,'Times New Roman',serif;">VERIFICAÇÃO DE CONTA</p>
-      </div>`;
-  }
-  return `
-    <div style="padding:32px 36px; text-align:center; border-bottom:1px solid #9D4EDD33; background:linear-gradient(180deg,rgba(157,78,221,0.18),transparent);">
-      <div style="font-size:40px; line-height:1; margin-bottom:8px; filter:drop-shadow(0 2px 6px rgba(157,78,221,0.4));">📖</div>
-      <h1 style="margin:0; font-size:26px; letter-spacing:2px; color:#E0AAFF; font-weight:700; font-family:Georgia,'Times New Roman',serif;">The Dark Library</h1>
-      <p style="margin:6px 0 0; font-size:12px; letter-spacing:4px; color:#C77DFF; font-family:Georgia,'Times New Roman',serif;">VERIFICAÇÃO DE CONTA</p>
-    </div>`;
-}
-
-async function sendVerificationEmail(to: string, code: string) {
-  if (!smtpConfigured()) {
+async function sendVerificationEmail(to: string, code: string): Promise<boolean> {
+  if (!RESEND_API_KEY) {
     console.log(`[Auth][DEV] Código de verificação para ${to}: ${code}`);
-    return;
+    return false;
   }
   const emailHtml = `
     <div style="font-family: Georgia, 'Times New Roman', serif; margin:0; padding:0; background:#0f0020; background-image:linear-gradient(180deg,#1a0033,#0a0017); padding:32px 16px;">
       <div style="max-width:560px; margin:0 auto; background:linear-gradient(180deg,#240046,#16002e); border-radius:16px; overflow:hidden; border:1px solid #9D4EDD44; box-shadow:0 20px 60px rgba(0,0,0,0.6);">
-        ${emailHeaderBlock()}
+        <div style="padding:32px 36px; text-align:center; border-bottom:1px solid #9D4EDD33; background:linear-gradient(180deg,rgba(157,78,221,0.18),transparent);">
+          <div style="font-size:40px; line-height:1; margin-bottom:8px; filter:drop-shadow(0 2px 6px rgba(157,78,221,0.4));">📖</div>
+          <h1 style="margin:0; font-size:26px; letter-spacing:2px; color:#E0AAFF; font-weight:700; font-family:Georgia,'Times New Roman',serif;">The Dark Library</h1>
+          <p style="margin:6px 0 0; font-size:12px; letter-spacing:4px; color:#C77DFF; font-family:Georgia,'Times New Roman',serif;">VERIFICAÇÃO DE CONTA</p>
+        </div>
         <div style="padding:32px 36px; color:#E0AAFF;">
           <p style="font-size:15px; line-height:1.7; color:#C77DFF; margin:0 0 20px;">Olá! Estamos quase lá. Use o código abaixo para concluir seu cadastro e entrar na biblioteca:</p>
           <div style="background:#10002B; border:1px dashed #C77DFF88; border-radius:12px; padding:24px; text-align:center; margin:0 0 20px;">
@@ -85,19 +42,32 @@ async function sendVerificationEmail(to: string, code: string) {
     </div>
   `;
   try {
-    const headerPath = emailHeaderPath();
-    await smtpTransporter.sendMail({
-      from: `"The Dark Library" <${smtpUser}>`,
-      to,
-      subject: 'Seu código de verificação — The Dark Library',
-      html: emailHtml,
-      attachments: headerPath
-        ? [{ filename: 'header-email.png', path: headerPath, cid: EMAIL_HEADER_CID }]
-        : undefined,
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: EMAIL_FROM,
+        to,
+        subject: 'Seu código de verificação — The Dark Library',
+        html: emailHtml,
+      }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
+    if (!response.ok) {
+      console.error('[Auth] Resend falhou:', response.status, await response.text());
+      return false;
+    }
     console.log(`[Auth] Email de verificação enviado para ${to}`);
+    return true;
   } catch (error) {
-    console.error('[Auth] Falha ao enviar email. Código para fallback:', code, error);
+    console.error('[Auth] Falha ao enviar email via Resend:', error);
+    return false;
   }
 }
 
@@ -119,15 +89,17 @@ export const authService = {
 
     if (existing.rows.length === 0) {
       await db.query(
-        "INSERT INTO users (email, password_hash, role, verified) VALUES ($1, $2, 'reader', TRUE)",
+        "INSERT INTO users (email, password_hash, role, verified) VALUES ($1, $2, 'reader', FALSE)",
         [emailNormalized, passwordHash]
       );
     } else {
-      await db.query('UPDATE users SET password_hash = $1, verified = TRUE WHERE id = $2', [
+      await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [
         passwordHash,
         existing.rows[0].id,
       ]);
     }
+
+    await db.query('UPDATE verification_codes SET used = TRUE WHERE email = $1 AND used = FALSE', [emailNormalized]);
 
     const code = createVerificationCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -136,7 +108,13 @@ export const authService = {
       [emailNormalized, code, 'verify', expiresAt]
     );
 
-    return { email: emailNormalized };
+    const sent = await sendVerificationEmail(emailNormalized, code);
+
+    if (!sent) {
+      await db.query('UPDATE users SET verified = TRUE WHERE email = $1', [emailNormalized]);
+    }
+
+    return { email: emailNormalized, needsVerification: sent };
   },
 
   async verify(email: string, code: string) {
@@ -179,11 +157,6 @@ export const authService = {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
       throw new Error('INVALID_CREDENTIALS');
-    }
-
-    if (!user.verified) {
-      await db.query('UPDATE users SET verified = TRUE WHERE id = $1', [user.id]);
-      user.verified = true;
     }
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, {

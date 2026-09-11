@@ -112,7 +112,7 @@ export type User = {
 
 export const authApi = {
   register: (email: string, password: string) =>
-    api.post<{ email: string }>('/auth/register', { email, password }).then((res) => res.data),
+    api.post<{ email: string; needsVerification: boolean }>('/auth/register', { email, password }).then((res) => res.data),
   verify: (email: string, code: string) =>
     api.post<{ email: string; verified: boolean }>('/auth/verify', { email, code }).then((res) => res.data),
   login: (email: string, password: string) =>

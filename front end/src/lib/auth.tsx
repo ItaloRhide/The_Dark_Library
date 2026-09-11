@@ -5,7 +5,7 @@ type AuthContextType = {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<boolean>;
   verify: (email: string, code: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
@@ -46,7 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (email: string, password: string) => {
-    await authApi.register(email, password);
+    const result = await authApi.register(email, password);
+    return result.needsVerification;
   };
 
   const verify = async (email: string, code: string) => {

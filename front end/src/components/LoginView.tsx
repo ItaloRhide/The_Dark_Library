@@ -1,29 +1,33 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Mail, Lock, ArrowLeft, Eye, EyeOff, BookOpen } from "lucide-react";
+import { Mail, Lock, ArrowLeft, Eye, EyeOff, BookOpen, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
 import loginBg from "@/assets/login-background.png";
 
-type Tab = "login" | "register";
+type Tab = "login" | "register" | "verify";
 
 const errorMessage: Record<string, string> = {
-  EMAIL_ALREADY_REGISTERED: "Este email já está cadastrado. Faça login.",
+  EMAIL_ALREADY_REGISTERED: "Este email já está cadastrado. Faça login ou volte para verificar o código.",
+  INVALID_OR_EXPIRED_CODE: "Código inválido ou expirado. Tente novamente.",
   INVALID_CREDENTIALS: "Email ou senha incorretos.",
+  EMAIL_NOT_VERIFIED: "Conta ainda não verificada. Verifique seu código primeiro.",
   UNAUTHORIZED: "Sessão inválida. Entre novamente.",
   INVALID_INPUT: "Preencha os campos corretamente.",
 };
 
 export function LoginView() {
   const navigate = useNavigate();
-  const { login, register, isAuthenticated } = useAuth();
+  const { login, register, verify, isAuthenticated } = useAuth();
 
   const [tab, setTab] = useState<Tab>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   // Já autenticado? Vai direto para a biblioteca
   useEffect(() => {
@@ -39,6 +43,7 @@ export function LoginView() {
   const handleTab = (t: Tab) => {
     setTab(t);
     setError("");
+    setSuccess("");
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -49,7 +54,13 @@ export function LoginView() {
       const user = await login(email, password);
       navigate({ to: "/library" });
     } catch (err: any) {
-      setError(errorMessage[err?.response?.data?.error] ?? "Não foi possível entrar. Tente novamente.");
+      if (err?.response?.data?.error === "EMAIL_NOT_VERIFIED") {
+        setTab("verify");
+        setError("");
+        setSuccess("Você já se cadastrou. Insira o código enviado para o seu email.");
+      } else {
+        setError(errorMessage[err?.response?.data?.error] ?? "Não foi possível entrar. Tente novamente.");
+      }
     } finally {
       setLoading(false);
     }
@@ -60,11 +71,38 @@ export function LoginView() {
     setError("");
     setLoading(true);
     try {
-      await register(email, password);
-      await login(email, password);
-      navigate({ to: "/library" });
+      const needsVerification = await register(email, password);
+      if (needsVerification) {
+        setSuccess("Enviamos um código de verificação para o seu email.");
+        setTab("verify");
+        setCode("");
+      } else {
+        await login(email, password);
+        navigate({ to: "/library" });
+      }
     } catch (err: any) {
       setError(errorMessage[err?.response?.data?.error] ?? "Não foi possível criar a conta.");
+      if (err?.response?.data?.error === "EMAIL_ALREADY_REGISTERED") {
+        setTab("verify");
+        setError("");
+        setSuccess("Você já se cadastrou. Insira o código enviado para verificar sua conta.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await verify(email, code);
+      setSuccess("Conta verificada com sucesso! Agora é só entrar.");
+      setCode("");
+      setTab("login");
+    } catch (err: any) {
+      setError(errorMessage[err?.response?.data?.error] ?? "Falha na verificação.");
     } finally {
       setLoading(false);
     }
@@ -90,7 +128,7 @@ export function LoginView() {
       <div className="relative z-10 flex min-h-screen items-center justify-end">
         <div className="w-full max-w-lg px-6 pr-6 md:pr-16 lg:pr-24 py-10">
           <form
-            onSubmit={tab === "login" ? handleLogin : handleRegister}
+            onSubmit={tab === "login" ? handleLogin : tab === "register" ? handleRegister : handleVerify}
             className="options-rise-anim group w-full rounded-[28px] border p-10 md:p-12 transition-all duration-500 hover:border-[#C77DFF]/40 hover:-translate-y-1 hover:shadow-[0_40px_90px_-30px_#9D4EDD99,inset_0_1px_0_rgba(255,255,255,0.1)]"
             style={{
               background: "linear-gradient(180deg, rgba(26,0,51,0.72), rgba(16,0,43,0.62))",
@@ -121,7 +159,9 @@ export function LoginView() {
               <p className="mt-2 text-sm italic" style={{ color: "#9D4EDDcc" }}>
                 {tab === "login"
                   ? "Entre para mergulhar nas histórias."
-                  : "Crie sua conta de leitor e entre na biblioteca."}
+                  : tab === "register"
+                    ? "Crie sua conta de leitor."
+                    : "Confirme o código enviado ao seu email."}
               </p>
             </div>
 
@@ -175,6 +215,19 @@ export function LoginView() {
                 {error}
               </div>
             )}
+            {success && (
+              <div
+                className="mb-6 flex items-start gap-2 rounded-xl border px-4 py-3 text-sm"
+                style={{
+                  borderColor: "#4ADE8055",
+                  background: "rgba(20,83,45,0.25)",
+                  color: "#86EFAC",
+                }}
+              >
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{success}</span>
+              </div>
+            )}
 
             {/* Campos conforme a aba */}
             <div className="space-y-4">
@@ -198,7 +251,8 @@ export function LoginView() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="seu@email.com"
                     required
-                    className="h-11 pl-10 bg-[#10002B]/50 border-[#7B2CBF]/60 text-white placeholder:text-[#9D4EDD]/50 focus-visible:ring-[#9D4EDD] focus-visible:border-[#C77DFF] transition-colors duration-300 hover:border-[#C77DFF]/50"
+                    disabled={tab === "verify"}
+                    className="h-11 pl-10 bg-[#10002B]/50 border-[#7B2CBF]/60 text-white placeholder:text-[#9D4EDD]/50 focus-visible:ring-[#9D4EDD] focus-visible:border-[#C77DFF] transition-colors duration-300 hover:border-[#C77DFF]/50 disabled:opacity-70"
                   />
                 </div>
               </div>
@@ -277,6 +331,38 @@ export function LoginView() {
                   </div>
                 </div>
               )}
+
+              {tab === "verify" && (
+                <div>
+                  <label
+                    htmlFor="code"
+                    className="mb-1.5 block text-xs font-display tracking-wider"
+                    style={{ color: "#C77DFF" }}
+                  >
+                    CÓDIGO DE VERIFICAÇÃO
+                  </label>
+                  <div className="relative">
+                    <ShieldCheck
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+                      style={{ color: "#9D4EDD" }}
+                    />
+                    <Input
+                      id="code"
+                      type="text"
+                      inputMode="numeric"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="000000"
+                      required
+                      maxLength={6}
+                      className="h-11 pl-10 pr-3 tracking-[0.5em] text-center font-display text-lg bg-[#10002B]/50 border-[#7B2CBF]/60 text-white placeholder:text-[#9D4EDD]/50 focus-visible:ring-[#9D4EDD] focus-visible:border-[#C77DFF] transition-colors duration-300 hover:border-[#C77DFF]/50"
+                    />
+                  </div>
+                  <p className="mt-2 text-xs italic" style={{ color: "#9D4EDDcc" }}>
+                    Não recebeu? Volte para "Criar conta" e tente de novo — um novo código será enviado.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Botão principal */}
@@ -293,11 +379,26 @@ export function LoginView() {
               {loading
                 ? tab === "login"
                   ? "Entrando..."
-                  : "Criando conta..."
+                  : tab === "register"
+                    ? "Enviando..."
+                    : "Verificando..."
                 : tab === "login"
                   ? "Entrar"
-                  : "Criar conta e entrar"}
+                  : tab === "register"
+                    ? "Criar conta"
+                    : "Verificar código"}
             </button>
+
+            {tab === "verify" && (
+              <button
+                type="button"
+                onClick={() => handleTab("login")}
+                className="mt-4 w-full text-center text-xs transition hover:opacity-80"
+                style={{ color: "#9D4EDD" }}
+              >
+                Já verificou? Voltar para entrar
+              </button>
+            )}
 
             {/* Voltar */}
             <div className="mt-6 text-center">
