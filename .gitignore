@@ -26,6 +26,10 @@ launcher.bat
 # Controle local de tarefas
 TODOS.md
 
+# Uploads locais e arquivos-fonte de mídia
+uploads/
+midias/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
