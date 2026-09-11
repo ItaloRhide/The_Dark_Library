@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { booksApi, getImageUrl, type Book, type Chapter } from "@/lib/api";
+import { booksApi, getImageUrl, progressApi, type Book, type Chapter, type ReadingProgress } from "@/lib/api";
 import { bookCover } from "./BookSpine";
 import { Header } from "./Header";
 import { useAuth } from "@/lib/auth";
@@ -126,6 +126,49 @@ function buildPages(book: Book, metrics: PageMetrics): Page[] {
   return pages;
 }
 
+// Posição a salvar = capítulo + deslocamento de caracteres dentro do capítulo.
+// Usa as próprias páginas paginadas como referência, então é estável mesmo se
+// a paginação mudar entre aberturas (salvar e restaurar usam a mesma convenção).
+function pageToProgress(
+  idx: number,
+  pages: Page[]
+): { chapterId: string; charOffset: number } | null {
+  const p = pages[idx];
+  if (!p) return null;
+  if (p.kind === "cover" || p.kind === "back" || p.kind === "title" || p.kind === "toc") return null;
+  if (p.kind === "chapter-start") return { chapterId: p.chapterId, charOffset: 0 };
+  let start = idx;
+  while (start >= 0 && !(pages[start].kind === "chapter-start" && pages[start].chapterId === p.chapterId)) start--;
+  if (start < 0) return null;
+  let offset = 0;
+  for (let i = start + 1; i < idx; i++) {
+    if (pages[i].kind === "text") offset += pages[i].text.length;
+  }
+  return { chapterId: p.chapterId, charOffset: offset };
+}
+
+function findSpreadForProgress(
+  progress: ReadingProgress,
+  pages: Page[]
+): number | null {
+  if (!progress.chapter_id) return null;
+  const start = pages.findIndex(
+    (p) => p.kind === "chapter-start" && p.chapterId === progress.chapter_id
+  );
+  if (start < 0) return null;
+  let acc = 0;
+  for (let i = start + 1; i < pages.length; i++) {
+    const p = pages[i];
+    if (p.kind === "chapter-start") break;
+    if (p.kind !== "text") continue;
+    if (acc + p.text.length > progress.char_offset) {
+      return i % 2 === 0 ? i : i - 1;
+    }
+    acc += p.text.length;
+  }
+  return start % 2 === 0 ? start : start - 1;
+}
+
 export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props) {
   const { isOwner } = useAuth();
   const [book, setBook] = useState<Book | null>(null);
@@ -134,6 +177,8 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
   const [metrics, setMetrics] = useState<PageMetrics>(DEFAULT_METRICS);
   const [spread, setSpread] = useState(0);
   const [flipping, setFlipping] = useState<"next" | "prev" | null>(null);
+  const [savedProgress, setSavedProgress] = useState<ReadingProgress | null>(null);
+  const hasNavigated = useRef(false);
 
   useEffect(() => {
     const fetchBook = async () => {
@@ -147,6 +192,17 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
       }
     };
     fetchBook();
+
+    let alive = true;
+    progressApi
+      .get(storyId)
+      .then((p) => {
+        if (alive) setSavedProgress(p);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, [storyId]);
 
   const handleMeasure = useCallback((m: PageMetrics) => {
@@ -182,21 +238,56 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
     setSpread((s) => (s < total ? s : Math.max(0, total - 1)));
   }, [total]);
 
-  const startIdx = useMemo(() => {
-    if (!initialChapterId || pages.length === 0) return 0;
-    const i = pages.findIndex(
-      (p) => p.kind === "chapter-start" && p.chapterId === initialChapterId
-    );
-    if (i < 0) return 0;
-    return i % 2 === 0 ? i : i - 1;
-  }, [pages, initialChapterId]);
+  const resumeIdx = useMemo(() => {
+    if (pages.length === 0) return null;
+    if (initialChapterId) {
+      const i = pages.findIndex(
+        (p) => p.kind === "chapter-start" && p.chapterId === initialChapterId
+      );
+      return i < 0 ? null : i % 2 === 0 ? i : i - 1;
+    }
+    if (savedProgress) return findSpreadForProgress(savedProgress, pages);
+    return null;
+  }, [pages, initialChapterId, savedProgress]);
 
   useEffect(() => {
-    if (startIdx !== 0) setSpread(startIdx);
-  }, [startIdx]);
+    if (resumeIdx == null || hasNavigated.current) return;
+    setSpread(resumeIdx);
+  }, [resumeIdx]);
+
+  const pagesRef = useRef<Page[]>([]);
+  useEffect(() => {
+    pagesRef.current = pages;
+  }, [pages]);
+
+  const spreadRef = useRef(spread);
+  useEffect(() => {
+    spreadRef.current = spread;
+  }, [spread]);
+
+  const saveNow = useCallback(() => {
+    const target = pageToProgress(spreadRef.current, pagesRef.current);
+    if (!target) return;
+    progressApi.set(storyId, target).catch(() => {});
+  }, [storyId]);
+
+  useEffect(() => {
+    const t = setTimeout(saveNow, 800);
+    return () => clearTimeout(t);
+  }, [spread, saveNow]);
+
+  useEffect(() => {
+    const onHide = () => saveNow();
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      window.removeEventListener("pagehide", onHide);
+      saveNow();
+    };
+  }, [saveNow]);
 
   const next = () => {
     if (spread + 2 >= total) return;
+    hasNavigated.current = true;
     setFlipping("next");
     setTimeout(() => {
       setSpread((s) => s + 2);
@@ -205,6 +296,7 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
   };
   const prev = () => {
     if (spread === 0) return;
+    hasNavigated.current = true;
     setFlipping("prev");
     setTimeout(() => {
       setSpread((s) => Math.max(0, s - 2));
@@ -213,6 +305,7 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
   };
 
   const jumpToChapter = (chapterId: string) => {
+    hasNavigated.current = true;
     const i = pages.findIndex(
       (p) => p.kind === "chapter-start" && p.chapterId === chapterId
     );

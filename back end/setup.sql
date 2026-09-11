@@ -65,3 +65,13 @@ CREATE TABLE IF NOT EXISTS verification_codes (
 -- Indexes for auth performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_verification_codes_email ON verification_codes(email);
+
+-- Table: reading_progress
+CREATE TABLE IF NOT EXISTS reading_progress (
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  book_id UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  chapter_id UUID REFERENCES chapters(id) ON DELETE CASCADE,
+  char_offset INTEGER NOT NULL DEFAULT 0,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (user_id, book_id)
+);

@@ -68,6 +68,21 @@ export const chaptersApi = {
   delete: (id: string) => api.delete(`/chapters/${id}`),
 };
 
+export type ReadingProgress = {
+  chapter_id: string | null;
+  char_offset: number;
+  updated_at?: string;
+};
+
+export const progressApi = {
+  get: (bookId: string) =>
+    api.get<ReadingProgress>(`/progress/${bookId}`).then((res) => res.data),
+  set: (bookId: string, data: { chapterId: string | null; charOffset: number }) =>
+    api
+      .put<ReadingProgress>(`/progress/${bookId}`, { chapterId: data.chapterId, charOffset: data.charOffset })
+      .then((res) => res.data),
+};
+
 export type User = {
   id: string;
   email: string;
