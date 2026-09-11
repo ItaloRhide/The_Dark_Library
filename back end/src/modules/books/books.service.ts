@@ -21,7 +21,7 @@ export class BooksService {
     if (bookRes.rows.length === 0) return null;
 
     const chaptersRes = await db.query(
-      'SELECT id, book_id, title, content, order_index, created_at, updated_at FROM chapters WHERE book_id = $1 ORDER BY order_index ASC',
+      'SELECT id, book_id, title, content, order_index, created_at, updated_at FROM chapters WHERE book_id = $1 ORDER BY order_index ASC, created_at ASC, id ASC',
       [id]
     );
 

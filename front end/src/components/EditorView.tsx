@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { booksApi, chaptersApi, getImageUrl, type Book, type Chapter } from "@/lib/api";
-import { Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 
 type Props = {
   storyId: string;
@@ -19,12 +19,15 @@ export function EditorView({ storyId, onBack, onRead }: Props) {
   const chaptersRef = useRef<Chapter[]>([]);
   const autoSaveTimer = useRef<number | null>(null);
 
+  const sortByIndex = (cs: Chapter[]) => [...cs].sort((a, b) => a.order_index - b.order_index);
+
   const fetchBook = async () => {
     try {
       const data = await booksApi.get(storyId);
+      const sorted = sortByIndex(data.chapters || []);
       setBook(data);
-      setChapters(data.chapters || []);
-      chaptersRef.current = data.chapters || [];
+      setChapters(sorted);
+      chaptersRef.current = sorted;
       setLoading(false);
     } catch (err) {
       console.error("Failed to fetch book", err);
@@ -78,12 +81,41 @@ export function EditorView({ storyId, onBack, onRead }: Props) {
 
   const addChapter = async () => {
     try {
-      const nextIndex = chapters.length + 1;
+      const maxIndex = chapters.reduce((m, c) => Math.max(m, c.order_index), 0);
+      const nextIndex = maxIndex + 1;
       const ch = await chaptersApi.create(storyId, `Capítulo ${nextIndex}`, nextIndex);
-      setChapters((cs) => [...cs, { ...ch, content: "" }]);
+      setChapters((cs) => sortByIndex([...cs, { ...ch, content: "" }]));
       setActiveId(ch.id);
     } catch (err) {
       console.error("Failed to add chapter", err);
+    }
+  };
+
+  const moveChapter = async (id: string, dir: -1 | 1) => {
+    const sorted = sortByIndex(chapters);
+    const i = sorted.findIndex((c) => c.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= sorted.length) return;
+    const a = sorted[i];
+    const b = sorted[j];
+    try {
+      await Promise.all([
+        chaptersApi.update(a.id, { orderIndex: b.order_index }),
+        chaptersApi.update(b.id, { orderIndex: a.order_index }),
+      ]);
+      setChapters((cs) =>
+        sortByIndex(
+          cs.map((c) =>
+            c.id === a.id
+              ? { ...c, order_index: b.order_index }
+              : c.id === b.id
+                ? { ...c, order_index: a.order_index }
+                : c
+          )
+        )
+      );
+    } catch (err) {
+      console.error("Failed to reorder chapter", err);
     }
   };
 
@@ -193,7 +225,7 @@ export function EditorView({ storyId, onBack, onRead }: Props) {
           <>
             <ul className="space-y-1 mt-2">
               {chapters.map((c, i) => (
-                <li key={c.id} title={c.title || "Sem título"} className="group/ch flex items-center">
+                <li key={c.id} title={c.title || "Sem título"} className="group/ch flex items-center gap-1">
                   <button
                     onClick={() => setActiveId(c.id)}
                     className="flex-1 text-left rounded text-sm transition group flex items-baseline px-2 py-1.5 gap-2"
@@ -205,6 +237,26 @@ export function EditorView({ storyId, onBack, onRead }: Props) {
                     <span className="font-display text-xs opacity-60">{String(i + 1).padStart(2, "0")}</span>
                     <span className="truncate">{c.title || "Sem título"}</span>
                   </button>
+                  <span className="flex flex-col shrink-0">
+                    <button
+                      onClick={() => moveChapter(c.id, -1)}
+                      disabled={i === 0}
+                      title="Mover para cima"
+                      className="disabled:opacity-20 hover:bg-white/10 rounded px-0.5 py-px"
+                      style={{ color: "#C77DFF" }}
+                    >
+                      <ArrowUp className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => moveChapter(c.id, 1)}
+                      disabled={i === chapters.length - 1}
+                      title="Mover para baixo"
+                      className="disabled:opacity-20 hover:bg-white/10 rounded px-0.5 py-px"
+                      style={{ color: "#C77DFF" }}
+                    >
+                      <ArrowDown className="w-3 h-3" />
+                    </button>
+                  </span>
                   <button
                     onClick={() => deleteChapter(c.id)}
                     title="Deletar capítulo"
@@ -305,6 +357,7 @@ export function EditorView({ storyId, onBack, onRead }: Props) {
                 onRenameChapter={renameChapter}
                 onDeleteChapter={deleteChapter}
                 onAddChapter={addChapter}
+                onMoveChapter={moveChapter}
               />
             ) : active ? (
               <ChapterEditor
@@ -332,6 +385,7 @@ function TitleAndToc({
   onRenameChapter,
   onDeleteChapter,
   onAddChapter,
+  onMoveChapter,
 }: {
   book: Book;
   chapters: Chapter[];
@@ -343,6 +397,7 @@ function TitleAndToc({
   onRenameChapter: (id: string) => void;
   onDeleteChapter: (id: string) => void;
   onAddChapter: () => void;
+  onMoveChapter: (id: string, dir: -1 | 1) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   
@@ -488,20 +543,40 @@ function TitleAndToc({
             <span className="text-xs opacity-50">
               {wordCount(c.content)} palavras
             </span>
-            <div className="opacity-0 group-hover:opacity-100 transition flex gap-1 text-xs">
-              <button
-                onClick={() => onRenameChapter(c.id)}
-                className="px-1.5 py-0.5 rounded hover:bg-black/5"
-              >
-                ✎
-              </button>
-              <button
-                onClick={() => onDeleteChapter(c.id)}
-                className="px-1.5 py-0.5 rounded text-red-600 hover:bg-red-100"
-                title="Deletar capítulo"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+            <div className="flex items-baseline gap-1 text-xs">
+              <span className="opacity-0 group-hover:opacity-100 transition flex flex-col">
+                <button
+                  onClick={() => onMoveChapter(c.id, -1)}
+                  disabled={i === 0}
+                  title="Mover para cima"
+                  className="disabled:opacity-25 hover:bg-black/5 rounded px-0.5 py-px leading-none"
+                >
+                  <ArrowUp className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => onMoveChapter(c.id, 1)}
+                  disabled={i === chapters.length - 1}
+                  title="Mover para baixo"
+                  className="disabled:opacity-25 hover:bg-black/5 rounded px-0.5 py-px leading-none"
+                >
+                  <ArrowDown className="w-3 h-3" />
+                </button>
+              </span>
+              <span className="opacity-0 group-hover:opacity-100 transition flex gap-1">
+                <button
+                  onClick={() => onRenameChapter(c.id)}
+                  className="px-1.5 py-0.5 rounded hover:bg-black/5"
+                >
+                  ✎
+                </button>
+                <button
+                  onClick={() => onDeleteChapter(c.id)}
+                  className="px-1.5 py-0.5 rounded text-red-600 hover:bg-red-100"
+                  title="Deletar capítulo"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </span>
             </div>
           </li>
         ))}
