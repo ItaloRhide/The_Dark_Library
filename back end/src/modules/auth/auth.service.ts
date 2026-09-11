@@ -111,36 +111,31 @@ export const authService = {
     const emailNormalized = email.trim().toLowerCase();
 
     const existing = await db.query('SELECT id, verified FROM users WHERE email = $1', [emailNormalized]);
-    if (existing.rows.length > 0) {
-      const user = existing.rows[0];
-      if (user.verified) {
-        throw new Error('EMAIL_ALREADY_REGISTERED');
-      }
-      // Not verified yet: allow re-send by invalidating old codes below
+    if (existing.rows.length > 0 && existing.rows[0].verified) {
+      throw new Error('EMAIL_ALREADY_REGISTERED');
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
 
     if (existing.rows.length === 0) {
       await db.query(
-        'INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3)',
-        [emailNormalized, passwordHash, 'reader']
+        "INSERT INTO users (email, password_hash, role, verified) VALUES ($1, $2, 'reader', TRUE)",
+        [emailNormalized, passwordHash]
       );
     } else {
-      await db.query('UPDATE users SET password_hash = $1 WHERE email = $2', [passwordHash, emailNormalized]);
+      await db.query('UPDATE users SET password_hash = $1, verified = TRUE WHERE id = $2', [
+        passwordHash,
+        existing.rows[0].id,
+      ]);
     }
 
-    // Invalidate previous codes and create a new one
-    await db.query('UPDATE verification_codes SET used = TRUE WHERE email = $1 AND used = FALSE', [emailNormalized]);
-
     const code = createVerificationCode();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await db.query(
       'INSERT INTO verification_codes (email, code, purpose, expires_at) VALUES ($1, $2, $3, $4)',
       [emailNormalized, code, 'verify', expiresAt]
     );
 
-    await sendVerificationEmail(emailNormalized, code);
     return { email: emailNormalized };
   },
 
@@ -184,6 +179,11 @@ export const authService = {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
       throw new Error('INVALID_CREDENTIALS');
+    }
+
+    if (!user.verified) {
+      await db.query('UPDATE users SET verified = TRUE WHERE id = $1', [user.id]);
+      user.verified = true;
     }
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, {
