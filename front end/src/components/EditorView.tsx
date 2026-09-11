@@ -228,14 +228,14 @@ export function EditorView({ storyId, onBack, onRead }: Props) {
                 <li key={c.id} title={c.title || "Sem título"} className="group/ch flex items-center gap-1">
                   <button
                     onClick={() => setActiveId(c.id)}
-                    className="flex-1 text-left rounded text-sm transition group flex items-baseline px-2 py-1.5 gap-2"
+                    className="flex-1 min-w-0 text-left rounded text-sm transition group flex items-center px-2 py-1.5 gap-2"
                     style={{
                       color: activeId === c.id ? "#10002B" : "#E0AAFFcc",
                       background: activeId === c.id ? "#C77DFF" : "transparent",
                     }}
                   >
-                    <span className="font-display text-xs opacity-60">{String(i + 1).padStart(2, "0")}</span>
-                    <span className="truncate">{c.title || "Sem título"}</span>
+                    <span className="font-display text-xs opacity-60 shrink-0">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="truncate min-w-0">{c.title || "Sem título"}</span>
                   </button>
                   <span className="flex flex-col shrink-0">
                     <button
@@ -531,7 +531,7 @@ function TitleAndToc({
             </span>
             <button
               onClick={() => onPickChapter(c.id)}
-              className="flex-1 text-left text-lg hover:underline"
+              className="flex-1 min-w-0 break-words text-left text-lg hover:underline"
               style={{ fontFamily: "var(--font-serif)" }}
             >
               {c.title || "Sem título"}

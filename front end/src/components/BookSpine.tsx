@@ -13,6 +13,7 @@ type Props = {
 export function BookSpine({ story, onOpen, onEdit, onDelete, onRename, isOwner = true }: Props) {
   const cover = bookCover(story);
   const height = 200 + (story.title.length % 5) * 14;
+  const titleFontSize = Math.max(7, Math.min(10, Math.floor((height - 90) / Math.max(story.title.length, 1))));
   return (
     <div className="group relative flex flex-col items-center" style={{ perspective: 800 }}>
       <button
@@ -37,13 +38,17 @@ export function BookSpine({ story, onOpen, onEdit, onDelete, onRename, isOwner =
           style={{ bottom: 22, background: "var(--gold)" }}
         />
         <span
-          className="absolute inset-x-2 top-1/2 -translate-y-1/2 text-[10px] tracking-widest text-center font-display"
+          className="absolute inset-x-1.5 top-1/2 -translate-y-1/2 text-center font-display"
           style={{
             writingMode: "vertical-rl",
             transform: "rotate(180deg)",
             color: "oklch(0.92 0.08 85)",
             textShadow: "0 1px 2px oklch(0 0 0 / 0.5)",
+            fontSize: titleFontSize,
+            letterSpacing: "0.08em",
             maxHeight: height - 60,
+            maxWidth: "100%",
+            overflowWrap: "anywhere",
             overflow: "hidden",
             margin: "0 auto",
           }}

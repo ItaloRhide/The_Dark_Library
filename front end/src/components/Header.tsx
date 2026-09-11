@@ -44,7 +44,7 @@ export function Header({
             </p>
           )}
           <h1
-            className="font-display text-4xl md:text-5xl font-bold leading-tight"
+            className="font-display text-4xl md:text-5xl font-bold leading-snug break-words max-w-full"
             style={{ color: "#E0AAFF" }}
           >
             {title}

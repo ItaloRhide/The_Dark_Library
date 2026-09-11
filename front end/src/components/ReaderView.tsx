@@ -534,7 +534,7 @@ function CoverPage({ book }: { book: Book }) {
         <div className="absolute inset-5 border border-[#E0AAFF99] rounded-sm flex flex-col items-center justify-center text-center px-6">
           <span className="font-display tracking-[0.4em] text-[10px]" style={{ color: "#E0AAFF" }}>MANUSCRITO</span>
           <div className="my-4 h-px w-16" style={{ background: "#E0AAFF" }} />
-          <h2 className="font-display text-3xl md:text-4xl font-bold leading-snug drop-shadow-lg" style={{ color: "var(--gold)" }}>
+          <h2 className="font-display text-2xl md:text-4xl font-bold leading-snug break-words max-w-full drop-shadow-lg" style={{ color: "var(--gold)" }}>
             {book.title}
           </h2>
           {book.subtitle && (
@@ -577,7 +577,7 @@ function TitlePage({ book }: { book: Book }) {
   return (
     <div className="h-full flex flex-col items-center justify-center text-center">
       <p className="font-display tracking-[0.4em] text-[10px] mb-6 opacity-60">UMA HISTÓRIA DE</p>
-      <h1 className="font-display text-4xl md:text-5xl font-bold leading-tight">{book.title}</h1>
+      <h1 className="font-display text-4xl md:text-5xl font-bold leading-snug break-words max-w-full">{book.title}</h1>
       <div className="my-6 h-px w-24" style={{ background: "#7B2CBF66" }} />
       <p className="italic text-lg opacity-80">{book.subtitle ? book.subtitle : "Manuscrito Original"}</p>
       <p className="mt-12 font-display tracking-[0.3em] text-[10px] opacity-50">THE DARK LIBRARY</p>
@@ -593,10 +593,10 @@ function TocPage({ chapters, onJump }: { chapters: Chapter[]; onJump: (id: strin
       <ul className="space-y-2">
         {chapters.map((c, i) => (
           <li key={c.id} className="flex items-baseline gap-3">
-            <span className="font-display text-sm opacity-60 w-6">{String(i + 1).padStart(2, "0")}</span>
+            <span className="font-display text-sm opacity-60 w-6 shrink-0">{String(i + 1).padStart(2, "0")}</span>
             <button
               onClick={() => onJump(c.id)}
-              className="text-left hover:underline"
+              className="text-left break-words min-w-0 hover:underline"
               style={{ fontFamily: "var(--font-serif)" }}
             >
               {c.title || "Sem título"}
@@ -611,10 +611,12 @@ function TocPage({ chapters, onJump }: { chapters: Chapter[]; onJump: (id: strin
 
 function ChapterStart({ title, index }: { title: string; index: number }) {
   return (
-    <div className="h-full flex flex-col items-center justify-center text-center">
+    <div className="h-full flex flex-col items-center justify-center text-center px-4">
       <p className="font-display tracking-[0.5em] text-xs opacity-60">CAPÍTULO {index}</p>
       <div className="my-6 h-px w-16" style={{ background: "#7B2CBF66" }} />
-      <h2 className="font-display text-3xl md:text-4xl font-bold">{title}</h2>
+      <h2 className="font-display text-3xl md:text-4xl font-bold leading-snug break-words max-w-full">
+        {title}
+      </h2>
     </div>
   );
 }
