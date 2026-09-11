@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { booksApi, getImageUrl, type Book, type Chapter } from "@/lib/api";
 import { bookCover } from "./BookSpine";
 import { Header } from "./Header";
@@ -11,7 +11,19 @@ type Props = {
   onEdit: () => void;
 };
 
-const CHARS_PER_PAGE = 1100;
+type PageMetrics = {
+  width: number;
+  height: number;
+  lineHeight: number;
+  charsPerLine: number;
+};
+
+const DEFAULT_METRICS: PageMetrics = {
+  width: 620,
+  height: 720,
+  lineHeight: 32,
+  charsPerLine: 45,
+};
 
 type Page =
   | { kind: "cover" }
@@ -21,24 +33,50 @@ type Page =
   | { kind: "chapter-start"; chapterId: string; title: string; index: number }
   | { kind: "text"; chapterId: string; text: string };
 
-function paginateChapter(text: string | null | undefined): string[] {
-  if (!text || !text.trim()) return ["(Capítulo em branco...)"];
-  const pages: string[] = [];
-  const paragraphs = text.split(/\n+/);
-  let buf = "";
-  for (const p of paragraphs) {
-    if ((buf + "\n\n" + p).length > CHARS_PER_PAGE && buf) {
-      pages.push(buf.trim());
-      buf = p;
+function wrapParagraph(p: string, charsPerLine: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of p.split(/\s+/)) {
+    if (!word) continue;
+    const candidate = line ? line + " " + word : word;
+    if (candidate.length > charsPerLine && line) {
+      lines.push(line);
+      line = word;
     } else {
-      buf = buf ? buf + "\n\n" + p : p;
+      line = candidate;
     }
   }
-  if (buf) pages.push(buf.trim());
+  if (line) lines.push(line);
+  return lines;
+}
+
+function paginateChapter(
+  text: string | null | undefined,
+  metrics: PageMetrics,
+): string[] {
+  if (!text || !text.trim()) return ["(Capítulo em branco...)"];
+  const linesPerPage = Math.max(4, Math.floor(metrics.height / metrics.lineHeight) - 1);
+  const pages: string[] = [];
+  let current: string[] = [];
+  const flush = () => {
+    if (current.length) {
+      pages.push(current.map((l) => l.trimEnd()).join("\n").trim());
+      current = [];
+    }
+  };
+  for (const raw of text.split(/\n+/)) {
+    const paragraph = raw.trim();
+    if (!paragraph) continue;
+    for (const line of wrapParagraph(paragraph, metrics.charsPerLine)) {
+      if (current.length >= linesPerPage) flush();
+      current.push(line);
+    }
+  }
+  flush();
   return pages;
 }
 
-function buildPages(book: Book): Page[] {
+function buildPages(book: Book, metrics: PageMetrics): Page[] {
   const pages: Page[] = [{ kind: "cover" }, { kind: "back" }, { kind: "title" }, { kind: "toc" }];
   const chapters = book.chapters || [];
   chapters.forEach((c, i) => {
@@ -48,7 +86,7 @@ function buildPages(book: Book): Page[] {
       title: c.title,
       index: i + 1,
     });
-    paginateChapter(c.content).forEach((t) =>
+    paginateChapter(c.content, metrics).forEach((t) =>
       pages.push({ kind: "text", chapterId: c.id, text: t })
     );
   });
@@ -74,8 +112,24 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
     fetchBook();
   }, [storyId]);
 
-  const pages = useMemo(() => (book ? buildPages(book) : []), [book]);
+  const [metrics, setMetrics] = useState<PageMetrics>(DEFAULT_METRICS);
+  const handleMeasure = useCallback((m: PageMetrics) => {
+    setMetrics((prev) =>
+      prev.width === m.width &&
+      prev.height === m.height &&
+      prev.lineHeight === m.lineHeight &&
+      prev.charsPerLine === m.charsPerLine
+        ? prev
+        : m
+    );
+  }, []);
+
+  const pages = useMemo(() => (book ? buildPages(book, metrics) : []), [book, metrics]);
   const total = pages.length;
+
+  useEffect(() => {
+    setSpread((s) => (s < total ? s : Math.max(0, total - 1)));
+  }, [total]);
 
   const startIdx = useMemo(() => {
     if (!initialChapterId || pages.length === 0) return 0;
@@ -186,7 +240,7 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
           style={{ background: "linear-gradient(90deg, transparent, #00000066, transparent)" }}
         />
 
-        <PageFace page={pages[spread]} book={book} side="left" pageNumber={spread + 1} onJump={jumpToChapter} className="w-full aspect-[3/4] md:aspect-auto md:flex-1 md:h-auto" />
+        <PageFace page={pages[spread]} book={book} side="left" pageNumber={spread + 1} onJump={jumpToChapter} onMeasure={handleMeasure} className="w-full aspect-[3/4] md:aspect-auto md:flex-1 md:h-auto" />
 
         <div className="hidden md:block relative md:flex-1" style={{ transformStyle: "preserve-3d" }}>
           <div
@@ -233,6 +287,7 @@ function PageFace({
   side,
   pageNumber,
   onJump,
+  onMeasure,
   className,
 }: {
   page: Page | undefined;
@@ -240,8 +295,41 @@ function PageFace({
   side: "left" | "right";
   pageNumber: number;
   onJump: (chapterId: string) => void;
+  onMeasure?: (m: PageMetrics) => void;
   className?: string;
 }) {
+  const textRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!onMeasure || page?.kind !== "text") return;
+    const el = textRef.current;
+    if (!el) return;
+    const report = () => {
+      const cs = getComputedStyle(el);
+      const lineHeight = parseFloat(cs.lineHeight) || 32;
+      const span = document.createElement("span");
+      span.style.position = "absolute";
+      span.style.visibility = "hidden";
+      span.style.pointerEvents = "none";
+      span.style.whiteSpace = "nowrap";
+      span.textContent = "abcdefghijklmnopqrstuvwxyz0123456789";
+      el.appendChild(span);
+      const w = span.getBoundingClientRect().width;
+      el.removeChild(span);
+      const charsPerLine = Math.max(20, Math.floor((el.clientWidth / w) * 36));
+      onMeasure({
+        width: el.clientWidth,
+        height: el.clientHeight,
+        lineHeight,
+        charsPerLine,
+      });
+    };
+    report();
+    const ro = new ResizeObserver(report);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [page?.kind, onMeasure]);
+
   return (
     <div
       className={`overflow-hidden relative ${
@@ -273,7 +361,11 @@ function PageFace({
         ) : page.kind === "chapter-start" ? (
           <ChapterStart title={page.title} index={page.index} />
         ) : (
-          <div className="h-full text-justify leading-8 whitespace-pre-wrap text-[15px] md:text-base" style={{ hyphens: "auto" }}>
+          <div
+            ref={textRef}
+            className="h-full text-justify leading-8 whitespace-pre-wrap text-[15px] md:text-base"
+            style={{ hyphens: "auto" }}
+          >
             {page.text}
           </div>
         )}
