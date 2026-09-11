@@ -15,14 +15,14 @@ type PageMetrics = {
   width: number;
   height: number;
   lineHeight: number;
-  charsPerLine: number;
+  fontSize: number;
 };
 
 const DEFAULT_METRICS: PageMetrics = {
   width: 620,
   height: 720,
   lineHeight: 32,
-  charsPerLine: 45,
+  fontSize: 16,
 };
 
 type Page =
@@ -33,51 +33,84 @@ type Page =
   | { kind: "chapter-start"; chapterId: string; title: string; index: number }
   | { kind: "text"; chapterId: string; text: string };
 
-function wrapParagraph(p: string, charsPerLine: number): string[] {
-  const lines: string[] = [];
-  let line = "";
-  for (const word of p.split(/\s+/)) {
-    if (!word) continue;
-    const candidate = line ? line + " " + word : word;
-    if (candidate.length > charsPerLine && line) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = candidate;
-    }
-  }
-  if (line) lines.push(line);
-  return lines;
+function createScanner(metrics: PageMetrics): HTMLDivElement {
+  const el = document.createElement("div");
+  el.style.position = "fixed";
+  el.style.left = "-99999px";
+  el.style.top = "0";
+  el.style.width = `${metrics.width}px`;
+  el.style.fontFamily = "var(--font-body)";
+  el.style.fontSize = `${metrics.fontSize}px`;
+  el.style.lineHeight = `${metrics.lineHeight}px`;
+  el.style.whiteSpace = "pre-wrap";
+  el.style.textAlign = "justify";
+  el.style.hyphens = "auto";
+  el.style.visibility = "hidden";
+  el.style.pointerEvents = "none";
+  el.setAttribute("aria-hidden", "true");
+  return el;
 }
 
+function scanHeight(scanner: HTMLDivElement, text: string): number {
+  scanner.textContent = text;
+  return scanner.scrollHeight;
+}
+
+// Paginação exata: mede quantos caracteres cabem de verdade na página
+// (reservando uma linha para o número da página no rodapé).
 function paginateChapter(
   text: string | null | undefined,
   metrics: PageMetrics,
 ): string[] {
   if (!text || !text.trim()) return ["(Capítulo em branco...)"];
-  const linesPerPage = Math.max(4, Math.floor(metrics.height / metrics.lineHeight) - 1);
-  const pages: string[] = [];
-  let current: string[] = [];
-  const flush = () => {
-    if (current.length) {
-      pages.push(current.map((l) => l.trimEnd()).join("\n").trim());
-      current = [];
+  const scanner = createScanner(metrics);
+  document.body.appendChild(scanner);
+  try {
+    const target = Math.max(
+      metrics.height - metrics.lineHeight,
+      metrics.lineHeight * 4,
+    );
+    const pages: string[] = [];
+    let remaining = text.replace(/\r\n/g, "\n").trim();
+
+    while (remaining.length > 0) {
+      if (scanHeight(scanner, remaining) <= target) {
+        pages.push(remaining);
+        break;
+      }
+      // busca binária do maior prefixo que cabe
+      let lo = 0;
+      let hi = remaining.length;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        if (scanHeight(scanner, remaining.slice(0, mid)) <= target) {
+          lo = mid;
+        } else {
+          hi = mid - 1;
+        }
+      }
+      // recua até uma quebra de palavra para não cortar palavras no meio
+      let end = lo;
+      while (end > 0 && end < remaining.length && !/\s/.test(remaining[end - 1])) end--;
+      if (end <= 0) end = lo;
+      pages.push(remaining.slice(0, end).trim());
+      remaining = remaining.slice(end).trim();
     }
-  };
-  for (const raw of text.split(/\n+/)) {
-    const paragraph = raw.trim();
-    if (!paragraph) continue;
-    for (const line of wrapParagraph(paragraph, metrics.charsPerLine)) {
-      if (current.length >= linesPerPage) flush();
-      current.push(line);
-    }
+
+    if (pages.length === 0) pages.push(remaining || "(Capítulo em branco...)");
+    return pages;
+  } finally {
+    scanner.remove();
   }
-  flush();
-  return pages;
 }
 
 function buildPages(book: Book, metrics: PageMetrics): Page[] {
-  const pages: Page[] = [{ kind: "cover" }, { kind: "back" }, { kind: "title" }, { kind: "toc" }];
+  const pages: Page[] = [
+    { kind: "cover" },
+    { kind: "back" },
+    { kind: "title" },
+    { kind: "toc" },
+  ];
   const chapters = book.chapters || [];
   chapters.forEach((c, i) => {
     pages.push({
@@ -97,6 +130,10 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
   const { isOwner } = useAuth();
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pages, setPages] = useState<Page[]>([]);
+  const [metrics, setMetrics] = useState<PageMetrics>(DEFAULT_METRICS);
+  const [spread, setSpread] = useState(0);
+  const [flipping, setFlipping] = useState<"next" | "prev" | null>(null);
 
   useEffect(() => {
     const fetchBook = async () => {
@@ -112,19 +149,33 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
     fetchBook();
   }, [storyId]);
 
-  const [metrics, setMetrics] = useState<PageMetrics>(DEFAULT_METRICS);
   const handleMeasure = useCallback((m: PageMetrics) => {
     setMetrics((prev) =>
       prev.width === m.width &&
       prev.height === m.height &&
       prev.lineHeight === m.lineHeight &&
-      prev.charsPerLine === m.charsPerLine
+      prev.fontSize === m.fontSize
         ? prev
         : m
     );
   }, []);
 
-  const pages = useMemo(() => (book ? buildPages(book, metrics) : []), [book, metrics]);
+  useEffect(() => {
+    if (!book) return;
+    let alive = true;
+    const build = () => {
+      if (!alive) return;
+      setPages(buildPages(book, metrics));
+    };
+    build();
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(build).catch(() => {});
+    }
+    return () => {
+      alive = false;
+    };
+  }, [book, metrics]);
+
   const total = pages.length;
 
   useEffect(() => {
@@ -139,9 +190,6 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
     if (i < 0) return 0;
     return i % 2 === 0 ? i : i - 1;
   }, [pages, initialChapterId]);
-
-  const [spread, setSpread] = useState(0);
-  const [flipping, setFlipping] = useState<"next" | "prev" | null>(null);
 
   useEffect(() => {
     if (startIdx !== 0) setSpread(startIdx);
@@ -182,7 +230,7 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  if (loading || !book) {
+  if (loading || !book || pages.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#10002B] text-[#E0AAFF] font-display">
         Folheando as páginas...
@@ -229,39 +277,51 @@ export function ReaderView({ storyId, initialChapterId, onBack, onEdit }: Props)
       />
 
       <div
-        className="relative w-full max-w-6xl rounded-lg flex flex-col md:flex-row md:aspect-[16/10] p-3 md:p-7"
+        className="relative w-full max-w-6xl rounded-lg p-3 md:p-7"
         style={{
           background: "linear-gradient(90deg, #3C096C, #240046 50%, #3C096C)",
           boxShadow: "0 30px 80px -20px #00000099",
           perspective: "2000px",
         }}
       >
-        <div className="hidden md:block absolute left-1/2 top-6 bottom-6 w-6 -translate-x-1/2 pointer-events-none"
-          style={{ background: "linear-gradient(90deg, transparent, #00000066, transparent)" }}
-        />
+        <div className="relative flex flex-col md:flex-row md:aspect-[16/10]">
+          <div className="hidden md:block absolute left-1/2 top-6 bottom-6 w-6 -translate-x-1/2 pointer-events-none"
+            style={{ background: "linear-gradient(90deg, transparent, #00000066, transparent)" }}
+          />
 
-        <PageFace page={pages[spread]} book={book} side="left" pageNumber={spread + 1} onJump={jumpToChapter} onMeasure={handleMeasure} className="w-full aspect-[3/4] md:aspect-auto md:flex-1 md:h-auto" />
+          <div className="w-full aspect-[3/4] md:aspect-auto md:flex-1 md:h-full">
+            <PageFace
+              page={pages[spread]}
+              book={book}
+              side="left"
+              pageNumber={spread + 1}
+              onJump={jumpToChapter}
+              onMeasure={handleMeasure}
+              className="h-full"
+            />
+          </div>
 
-        <div className="hidden md:block relative md:flex-1" style={{ transformStyle: "preserve-3d" }}>
-          <div
-            className="absolute inset-0 origin-left transition-transform duration-700 ease-in-out"
-            style={{
-              transform: flipping === "next" ? "rotateY(-180deg)" : "rotateY(0deg)",
-              transformStyle: "preserve-3d",
-              zIndex: flipping ? 30 : 1,
-            }}
-          >
-            <div className="absolute inset-0" style={{ backfaceVisibility: "hidden" }}>
-              <PageFace page={pages[spread + 1]} book={book} side="right" pageNumber={spread + 2} onJump={jumpToChapter} className="h-full" />
-            </div>
+          <div className="hidden md:block md:flex-1 relative md:h-full" style={{ transformStyle: "preserve-3d" }}>
             <div
-              className="absolute inset-0"
+              className="absolute inset-0 origin-left transition-transform duration-700 ease-in-out"
               style={{
-                transform: "rotateY(180deg)",
-                backfaceVisibility: "hidden",
+                transform: flipping === "next" ? "rotateY(-180deg)" : "rotateY(0deg)",
+                transformStyle: "preserve-3d",
+                zIndex: flipping ? 30 : 1,
               }}
             >
-              <PageFace page={pages[spread + 2]} book={book} side="left" pageNumber={spread + 3} onJump={jumpToChapter} className="h-full" />
+              <div className="absolute inset-0" style={{ backfaceVisibility: "hidden" }}>
+                <PageFace page={pages[spread + 1]} book={book} side="right" pageNumber={spread + 2} onJump={jumpToChapter} className="h-full" />
+              </div>
+              <div
+                className="absolute inset-0"
+                style={{
+                  transform: "rotateY(180deg)",
+                  backfaceVisibility: "hidden",
+                }}
+              >
+                <PageFace page={pages[spread + 2]} book={book} side="left" pageNumber={spread + 3} onJump={jumpToChapter} className="h-full" />
+              </div>
             </div>
           </div>
         </div>
@@ -298,48 +358,35 @@ function PageFace({
   onMeasure?: (m: PageMetrics) => void;
   className?: string;
 }) {
-  const textRef = useRef<HTMLDivElement>(null);
+  const isCover = !!page && (page.kind === "cover" || page.kind === "back");
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!onMeasure || page?.kind !== "text") return;
-    const el = textRef.current;
+    if (!onMeasure || isCover) return;
+    const el = contentRef.current;
     if (!el) return;
     const report = () => {
-      const cs = getComputedStyle(el);
-      const lineHeight = parseFloat(cs.lineHeight) || 32;
-      const span = document.createElement("span");
-      span.style.position = "absolute";
-      span.style.visibility = "hidden";
-      span.style.pointerEvents = "none";
-      span.style.whiteSpace = "nowrap";
-      span.textContent = "abcdefghijklmnopqrstuvwxyz0123456789";
-      el.appendChild(span);
-      const w = span.getBoundingClientRect().width;
-      el.removeChild(span);
-      const charsPerLine = Math.max(20, Math.floor((el.clientWidth / w) * 36));
+      const isMd = window.matchMedia("(min-width: 768px)").matches;
       onMeasure({
         width: el.clientWidth,
         height: el.clientHeight,
-        lineHeight,
-        charsPerLine,
+        lineHeight: 32,
+        fontSize: isMd ? 16 : 15,
       });
     };
     report();
     const ro = new ResizeObserver(report);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [page?.kind, onMeasure]);
+  }, [isCover, onMeasure]);
 
   return (
     <div
       className={`overflow-hidden relative ${
-        page && (page.kind === "cover" || page.kind === "back") ? "" : "p-6 md:p-14"
+        isCover ? "" : "p-6 md:p-14"
       } ${className ?? ""}`}
       style={{
-        background:
-          page && (page.kind === "cover" || page.kind === "back")
-            ? "transparent"
-            : "var(--paper)",
+        background: isCover ? "transparent" : "var(--paper)",
         color: "var(--ink)",
         boxShadow:
           side === "left"
@@ -349,7 +396,7 @@ function PageFace({
         fontFamily: "var(--font-body)",
       }}
     >
-      <div className="h-full overflow-hidden">
+      <div ref={contentRef} className="h-full overflow-hidden">
         {!page ? null : page.kind === "cover" ? (
           <CoverPage book={book} />
         ) : page.kind === "back" ? (
@@ -362,7 +409,6 @@ function PageFace({
           <ChapterStart title={page.title} index={page.index} />
         ) : (
           <div
-            ref={textRef}
             className="h-full text-justify leading-8 whitespace-pre-wrap text-[15px] md:text-base"
             style={{ hyphens: "auto" }}
           >
@@ -372,7 +418,7 @@ function PageFace({
       </div>
       <div
         className={`absolute bottom-4 left-0 right-0 text-center text-xs italic opacity-60 ${
-          page && (page.kind === "cover" || page.kind === "back") ? "hidden" : ""
+          isCover ? "hidden" : ""
         }`}
       >
         {page ? pageNumber : ""}
