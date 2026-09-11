@@ -21,7 +21,11 @@ export function FeedbackButton() {
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const page = `${location.pathname}${location.search}`;
+  const [page, setPage] = useState("");
+
+  useEffect(() => {
+    setPage(`${location.pathname}${location.search}`);
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     if (!open) return;
