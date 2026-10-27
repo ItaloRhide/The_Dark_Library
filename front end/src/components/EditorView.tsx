@@ -407,12 +407,15 @@ function TitleAndToc({
       return;
     }
     try {
-      // Sending original file without compression for debugging
       const updatedBook = await booksApi.updateCover(book.id, file);
       onCoverImage(updatedBook.cover_image);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao fazer upload da capa", err);
-      alert("Não foi possível enviar esta imagem.");
+      const msg =
+        err?.response?.data?.error ||
+        err?.message ||
+        "Não foi possível enviar esta imagem.";
+      alert(msg);
     }
   };
 
@@ -436,7 +439,7 @@ function TitleAndToc({
             <div className="w-full h-full flex flex-col items-center justify-center text-center px-3 opacity-70">
               <span className="text-3xl mb-2">🖼️</span>
               <span className="font-display tracking-widest text-[10px]">ENVIAR CAPA</span>
-              <span className="text-[10px] italic mt-1 opacity-70">PNG ou JPEG</span>
+              <span className="text-[10px] italic mt-1 opacity-70">PNG, JPEG ou WEBP</span>
             </div>
           )}
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
@@ -448,7 +451,7 @@ function TitleAndToc({
         <input
           ref={fileRef}
           type="file"
-          accept="image/png,image/jpeg"
+          accept="image/png,image/jpeg,image/webp"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];

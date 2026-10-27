@@ -52,9 +52,7 @@ export const booksApi = {
   updateCover: (id: string, file: File) => {
     const formData = new FormData();
     formData.append('cover', file);
-    return api.patch<Book>(`/books/${id}/cover`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }).then((res) => res.data);
+    return api.patch<Book>(`/books/${id}/cover`, formData).then((res) => res.data);
   },
   delete: (id: string) => api.delete(`/books/${id}`),
 };
